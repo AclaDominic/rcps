@@ -1624,13 +1624,25 @@ class TaskComputationsService
         $minHours = ($level === 1 && $parallelizable && !$isCritical) ? 1.5 : 2.0;
         $base = max($minHours, min($hoursMap[$level] ?? 5.0, $availableHours));
 
+        // Realistic overhead modeling:
+        // D&C (divide_conquer) has planning overhead but reduces effort on complex tasks.
+        // Greedy has no planning overhead but struggles (takes longer) on complex tasks.
+        
         if ($algorithmMode === 'greedy') {
-            if ($parallelizable && !$isCritical) {
-                // Greedy thrives on parallelizable quick-win tasks — faster completion
-                $base = round($base * 0.85, 1);
-            } elseif (!$parallelizable || $isCritical) {
-                // Sequential or critical tasks cost more without D&C's structured breakdown
-                $base = round($base * 1.10, 1);
+            if ($level <= 2) {
+                // Greedy is slightly faster for simple tasks (less planning overhead)
+                $base = round($base * 0.95, 1);
+            } elseif ($level >= 4) {
+                // Sequential or critical complex tasks cost more without structured breakdown
+                $base = round($base * 1.15, 1);
+            }
+        } elseif ($algorithmMode === 'divide_conquer') {
+            if ($level >= 4) {
+                // D&C is faster for complex tasks due to proper decomposition
+                $base = round($base * 0.90, 1);
+            } elseif ($level <= 2) {
+                // D&C has slight planning overhead for simple tasks
+                $base = round($base * 1.05, 1);
             }
         }
 
