@@ -1,0 +1,165 @@
+@import '../../vendor/filament/filament/resources/css/app.css';
+
+@import './kanban';
+@import './dialogs';
+@import './loading.io';
+
+.filament-login-page {
+  background-image: url('../images/login-bg.jpg'); // or '../images/login.jpeg' if in resources
+  background-size: cover;
+  background-position: center;
+}
+
+.filament-login-logo {
+    background-image: url('../images/logo.png'); /* assuming the image is in public/img */
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.filament-header-heading {
+    display: block;
+}
+
+.filament-sidebar-header {
+    background-color:rgb(10, 136, 138); /* from tailwind.config.js */
+    color: rgb(228, 228, 228);
+}
+
+.filament-sidebar-header > div > button > svg{
+     color: rgb(253, 253, 253);
+}
+
+.filament-sidebar-header > button > svg{
+     color: rgb(253, 253, 253);
+}
+
+.filament-sidebar-nav {
+    background-color:rgb(10, 136, 138); /* from tailwind.config.js */
+    color: rgb(228, 228, 228);
+}
+
+.filament-sidebar-group > button > svg{
+     color: rgb(253, 253, 253);
+}
+
+.filament-sidebar-group > button > div > p{
+     color: rgb(253, 253, 253);
+}
+
+.filament-sidebar-item > a.bg-primary-500{
+    background-color: #e2ffff;
+    color: rgb(10, 136, 138);
+}
+
+.overflow-y-auto {
+  overflow-y: auto;
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent; /* Firefox */
+}
+
+/* Chrome, Edge, Safari */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2); /* light, transparent scrollbar */
+  border-radius: 4px;
+}
+
+.ticket-comment {
+
+    .actions {
+        @apply opacity-0 transition;
+    }
+
+    &:hover {
+        .actions {
+            @apply opacity-100;
+        }
+    }
+
+}
+
+.filament-forms-repeater-component {
+    & > .relative.flex.justify-center {
+        @apply justify-start;
+    }
+}
+
+.filament-stats-overview-widget-card-icon-size svg {
+    width: 2rem;   /* or use Tailwind classes like w-8 */
+    height: 2rem;  /* or h-8 */
+}
+
+.primary-icon-color svg {
+    @apply text-primary-800;
+}
+
+.warning-icon-color svg {
+    @apply text-warning-800;
+}
+
+.success-icon-color svg {
+    @apply text-success-800;
+}
+
+.social-icon {
+    @apply w-6 h-6 rounded-full p-1 bg-gray-100 text-white;
+
+    &.google {
+        background-color: #ea4335;
+    }
+
+    &.facebook {
+        background-color: #3b5998;
+    }
+
+    &.github {
+        background-color: #000000;
+    }
+
+    &.twitter {
+        background-color: #55acee;
+    }
+}
+
+label:has(.sprint-checkboxes) > span {
+    width: 100%;
+}
+
+.text-xl {
+    font-size: 1rem;
+    line-height: 1.75rem;
+}
+
+/* Hanapin yung wrapper ng hint */
+.filament-forms-field-wrapper-hint {
+    position: relative;
+}
+
+/* Default: itago yung hint text */
+.filament-forms-field-wrapper-hint span {
+    display: none;
+    position: absolute;
+    bottom: 125%; /* lilitaw sa taas ng icon */
+    left: 50%;
+    transform: translateX(-50%);
+    background: #eceaea;
+    color: #645f5f;
+    font-size: 0.75rem;
+    padding: 6px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    z-index: 50;
+}
+
+/* Pag naka-hover sa icon → ipakita yung hint text */
+.filament-forms-field-wrapper-hint:hover span {
+    display: block;
+}
