@@ -106,7 +106,10 @@
     <button
         type="button"
         @click="getOverallComputation()"
-        class="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
+        class="inline-flex items-center gap-2 px-5 py-2.5 text-white font-medium rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200"
+        style="background-color: #4f46e5;" {{-- indigo-600 --}}
+        onmouseover="this.style.backgroundColor='#4338ca'" {{-- indigo-700 --}}
+        onmouseout="this.style.backgroundColor='#4f46e5'"
     >
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
