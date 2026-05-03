@@ -99,6 +99,25 @@ class CreateProject extends CreateRecord
         }
     }
 
+    /**
+     * Generate a unique ticket prefix from the project name.
+     */
+    protected function generateUniqueTicketPrefix(string $name, string $suffix = ''): string
+    {
+        $base = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', $name), 0, 4));
+        if (strlen($base) < 2) {
+            $base = 'PRJ';
+        }
+        $unique = $base . ($suffix ? '-' . $suffix : '') . '-' . strtolower(substr(uniqid(), -4));
+        // Ensure uniqueness against existing rows
+        $counter = 0;
+        while (\App\Models\Project::withTrashed()->where('ticket_prefix', $unique)->exists()) {
+            $unique = $base . ($suffix ? '-' . $suffix : '') . '-' . strtolower(substr(uniqid(), -4)) . $counter;
+            $counter++;
+        }
+        return $unique;
+    }
+
     protected function createComparativeStudyProjects($data, $aiResults)
     {
         $originalName = $data['name'];
@@ -127,8 +146,9 @@ class CreateProject extends CreateRecord
             'start_date' => $greedyData['start_date'],
             'end_date' => $greedyData['end_date'],
             'type' => $greedyData['type'],
-            'dependency_mode'=> 1,
+            'dependency_mode' => 1,
             'comparison_id' => $comparisonId,
+            'ticket_prefix' => $this->generateUniqueTicketPrefix($originalName, 'G'),
             'metadata' => $greedyData['metadata']
         ]);
         
@@ -155,8 +175,9 @@ class CreateProject extends CreateRecord
             'start_date' => $divideConquerData['start_date'],
             'end_date' => $divideConquerData['end_date'],
             'type' => $divideConquerData['type'],
-            'dependency_mode'=> 2,
+            'dependency_mode' => 2,
             'comparison_id' => $comparisonId,
+            'ticket_prefix' => $this->generateUniqueTicketPrefix($originalName, 'DC'),
             'metadata' => $divideConquerData['metadata']
         ]);
         
@@ -349,6 +370,7 @@ class CreateProject extends CreateRecord
                 'end_date' => $projectData['end_date'] ?? null,
                 'type' => $projectData['type'] ?? 'standard',
                 'dependency_mode' => $projectData['dependency_mode'],
+                'ticket_prefix' => $this->generateUniqueTicketPrefix($projectData['name']),
                 'metadata' => $projectData['metadata']
             ]);
             
