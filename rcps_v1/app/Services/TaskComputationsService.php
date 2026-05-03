@@ -558,6 +558,14 @@ class TaskComputationsService
             $skillRequirements = $task['skill_requirements'] ?? [];
             $isCritical = $task['is_critical_path'] ?? false;
             
+            // Check if already assigned via role selection
+            if (!empty($task['responsible_id']) && !empty($task['target_role_name'])) {
+                $userId = $task['responsible_id'];
+                $userWorkloads[$userId] = ($userWorkloads[$userId] ?? 0) + $estimatedHours;
+                $task['assignment_reason'] = "Assigned via Target Role (" . $task['target_role_name'] . ")";
+                continue;
+            }
+
             // Select appropriate user
             $selectedUser = $this->selectResponsibleUser(
                 $users,
@@ -1588,7 +1596,10 @@ class TaskComputationsService
             'priority_base_score' => $this->priorityScore($level),
             'quick_win_score' => $this->quickWinScore($estimatedHours, $level),
             'immediate_impact' => $this->immediateImpact($isCritical, $this->priorityScore($level), $level),
-            'effort_to_value_ratio' => $this->effortToValueRatio($estimatedHours, $this->immediateImpact($isCritical, $this->priorityScore($level), $level))
+            'effort_to_value_ratio' => $this->effortToValueRatio($estimatedHours, $this->immediateImpact($isCritical, $this->priorityScore($level), $level)),
+            'responsible_id' => $value['responsible_id'] ?? null,
+            'responsible_name' => $value['responsible_name'] ?? null,
+            'target_role_name' => $value['target_role_name'] ?? null,
         ];
     }
 

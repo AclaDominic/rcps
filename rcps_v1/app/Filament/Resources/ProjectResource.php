@@ -388,7 +388,37 @@ class ProjectResource extends Resource
                                                                 ->filter(fn ($item) => !empty($item['subtask_title']))
                                                                 ->count() > 1;
                                                         })
-                                                        ->helperText('Select which previous subtask this depends on'),    
+                                                        ->helperText('Select which previous subtask this depends on')
+                                                        ->columnSpan('full'),
+                                                        
+                                                    Forms\Components\Select::make('target_role')
+                                                        ->label('Target Role')
+                                                        ->options(fn() => \Spatie\Permission\Models\Role::pluck('name', 'name')->toArray())
+                                                        ->reactive()
+                                                        ->afterStateUpdated(function ($state, callable $set) {
+                                                            if ($state) {
+                                                                $users = \App\Models\User::role($state)->get();
+                                                                if ($users->isNotEmpty()) {
+                                                                    $randomUser = $users->random();
+                                                                    $set('responsible_id', $randomUser->id);
+                                                                    $set('responsible_name', $randomUser->name);
+                                                                    $set('target_role_name', $state);
+                                                                } else {
+                                                                    $set('responsible_id', null);
+                                                                    $set('responsible_name', 'No user found for role');
+                                                                    $set('target_role_name', null);
+                                                                }
+                                                            } else {
+                                                                $set('responsible_id', null);
+                                                                $set('responsible_name', null);
+                                                                $set('target_role_name', null);
+                                                            }
+                                                        }),
+                                                    Forms\Components\Hidden::make('responsible_id'),
+                                                    Forms\Components\Hidden::make('target_role_name'),
+                                                    Forms\Components\TextInput::make('responsible_name')
+                                                        ->label('Assigned User')
+                                                        ->disabled(),    
 
                                                 ]),    
                                             ]),

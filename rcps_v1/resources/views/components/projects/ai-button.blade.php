@@ -736,6 +736,29 @@
                 });
                 return Object.values(breakdown).sort((a, b) => b.totalHours - a.totalHours);
             },
+            getUserAssignments() {
+                const algorithm = this.activeTab === 'comparison' ? 'divide_conquer' : this.activeTab;
+                const tasks = this.comparative_preview?.algorithms?.[algorithm]?.tasks || [];
+                const assignments = {};
+                
+                tasks.forEach(task => {
+                    const id = task.responsible_id;
+                    if (!id) return;
+                    
+                    if (!assignments[id]) {
+                        assignments[id] = {
+                            name: task.responsible_name || 'Unknown',
+                            role: task.target_role_name || 'Assigned via workload balance',
+                            tasks: []
+                        };
+                    }
+                    if (!assignments[id].tasks.some(t => t.title === task.title)) {
+                        assignments[id].tasks.push(task);
+                    }
+                });
+                
+                return Object.values(assignments);
+            },
             getAssignmentReason(task) {
                 return task.assignment_reason || 'Assigned based on workload balance';
             },
@@ -1030,6 +1053,9 @@
                                                     <div class="ml-3">
                                                         <div class="text-sm font-medium text-gray-900" 
                                                             x-text="task.responsible_name"></div>
+                                                        <template x-if="task.target_role_name">
+                                                            <div class="text-xs text-blue-600" x-text="task.target_role_name"></div>
+                                                        </template>
                                                     </div>
                                                 </div>
                                             </template>
@@ -1174,6 +1200,9 @@
                                                     <div class="ml-3">
                                                         <div class="text-sm font-medium text-gray-900" 
                                                             x-text="task.responsible_name"></div>
+                                                        <template x-if="task.target_role_name">
+                                                            <div class="text-xs text-green-600" x-text="task.target_role_name"></div>
+                                                        </template>
                                                     </div>
                                                 </div>
                                             </template>
@@ -1535,7 +1564,68 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- User Assignment List -->
+                <div class="mt-6 bg-white rounded-lg border border-gray-200 overflow-hidden">
+                    <div class="p-4 border-b border-gray-200 bg-indigo-50">
+                        <h4 class="font-semibold text-indigo-800 flex items-center gap-2">
+                            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                            User Assignment List
+                        </h4>
+                        <p class="text-sm text-indigo-600 mt-1">A consolidated view of all assigned users, their roles, and their assigned subtasks.</p>
+                    </div>
+                    <div class="p-4 bg-white">
+                        <div class="space-y-4">
+                            <template x-for="(assignment, index) in getUserAssignments()" :key="'assignment_' + index">
+                                <div class="border rounded-lg p-4 bg-gray-50 shadow-sm">
+                                    <div class="flex items-center justify-between border-b pb-3 mb-3">
+                                        <div class="flex items-center gap-3">
+                                            <div class="h-10 w-10 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-bold shadow"
+                                                x-text="(assignment.name || '').substring(0,2).toUpperCase()"></div>
+                                            <div>
+                                                <h5 class="text-md font-bold text-gray-900" x-text="assignment.name"></h5>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800"
+                                                    x-text="assignment.role"></span>
+                                            </div>
+                                        </div>
+                                        <div class="text-sm font-medium text-gray-500 bg-white px-3 py-1 rounded-full shadow-sm border">
+                                            <span x-text="assignment.tasks.length"></span> task(s)
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <ul class="space-y-2">
+                                            <template x-for="(task, tIndex) in assignment.tasks" :key="'assigned_task_' + index + '_' + tIndex">
+                                                <li class="flex items-start text-sm bg-white p-2 rounded border">
+                                                    <div class="flex-shrink-0 mt-0.5">
+                                                        <svg class="h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                    </div>
+                                                    <div class="ml-2 flex-1">
+                                                        <p class="font-medium text-gray-800" x-text="task.title"></p>
+                                                        <p class="text-xs text-gray-500 line-clamp-1" x-html="task.description"></p>
+                                                    </div>
+                                                    <div class="ml-2 text-xs font-medium text-gray-500 whitespace-nowrap">
+                                                        <span x-text="task.estimated_hours + 'h'"></span>
+                                                    </div>
+                                                </li>
+                                            </template>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </template>
+                            <template x-if="getUserAssignments().length === 0">
+                                <div class="text-center py-6 text-gray-500 italic border rounded-lg bg-gray-50">
+                                    No users assigned yet.
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
             </div>
+
 
             <!-- Task Details Modal -->
             <div x-show="showTaskDetails && selectedTask" 
@@ -1621,6 +1711,9 @@
                                                 <div class="ml-3">
                                                     <p class="text-sm font-medium text-gray-900"
                                                     x-text="selectedTask?.responsible_name"></p>
+                                                    <template x-if="selectedTask?.target_role_name">
+                                                        <p class="text-xs text-indigo-600 mt-0.5" x-text="selectedTask.target_role_name"></p>
+                                                    </template>
                                                 </div>
                                             </div>
                                             <template x-if="selectedTask?.assignment_reason">
