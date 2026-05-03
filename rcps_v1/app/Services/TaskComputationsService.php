@@ -1578,25 +1578,69 @@ class TaskComputationsService
     public function generateTaskMetrics(array $complexityResult, float $availableHours, array $value, ?bool $parentCritical = null, string $algorithmMode = 'divide_conquer'): array
     {
         $level = $complexityResult['level_num'] ?? 3;
-        $isCritical = $parentCritical ?? $this->isCriticalPath($level);
-        $isParallel = $this->isParallelizable($level);
+        $title = $value['subtask_title'] ?? 'Task';
+        $desc = $value['subtask_description'] ?? '';
+        
+        // Create a pseudo-random seed based on the title to keep it deterministic but varied
+        $seed = crc32($title . $desc);
+        
+        // Add random variance to level for internal calculations (e.g., sometimes a simple task is unexpectedly complex)
+        $internalLevel = $level;
+        if (($seed % 100) < 20) {
+            // 20% chance to slightly increase complexity internally
+            $internalLevel = min(5, $level + 1);
+        }
+        
+        $isCritical = $parentCritical ?? $this->isCriticalPath($internalLevel);
+        
+        // 20% chance for a task to not be parallelizable even if simple
+        $isParallel = $this->isParallelizable($internalLevel) && (($seed % 10) > 1);
 
-        $estimatedHours = $this->estimateHours($level, $availableHours, $isParallel, $isCritical, $algorithmMode);
+        $estimatedHours = $this->estimateHours($internalLevel, $availableHours, $isParallel, $isCritical, $algorithmMode);
+
+        // Add realistic variance based on seed
+        // Pseudo-random variance between -15% and +20%
+        $variance = (($seed % 35) - 15) / 100;
+        $estimatedHours = round($estimatedHours * (1 + $variance), 1);
+        
+        // Ensure we don't go below minHours
+        $minHours = ($internalLevel === 1 && $isParallel && !$isCritical) ? 1.5 : 2.0;
+        $estimatedHours = max($minHours, $estimatedHours);
+
+        // Calculate other metrics with pseudo-random variance
+        $baseIntensity = $this->resourceIntensity($internalLevel);
+        $intensityVariance = ($seed % 3) - 1; // -1, 0, +1
+        $intensity = max(1, min(5, $baseIntensity + $intensityVariance));
+        
+        // Risk level with some randomness
+        $riskLevels = ['low', 'medium', 'high'];
+        $baseRisk = $this->riskLevel($internalLevel);
+        $baseRiskIdx = array_search($baseRisk, $riskLevels) !== false ? array_search($baseRisk, $riskLevels) : 1;
+        // 15% chance to shift risk up, 15% to shift down
+        $riskShiftChance = $seed % 100;
+        if ($riskShiftChance > 85 && $baseRiskIdx < 2) $baseRiskIdx++;
+        elseif ($riskShiftChance < 15 && $baseRiskIdx > 0) $baseRiskIdx--;
+        $finalRisk = $riskLevels[$baseRiskIdx];
+
+        $priorityScore = $this->priorityScore($internalLevel);
+        $priorityScore = max(0, min(100, $priorityScore + (($seed % 21) - 10))); // +/- 10 points
+        
+        $immediateImpact = $this->immediateImpact($isCritical, $priorityScore, $internalLevel);
 
         return [
-            'title' => $value['subtask_title'] ?? '',
-            'description' => $value['subtask_description'] ?? '',
+            'title' => $title,
+            'description' => $desc,
             'dependencies' => $algorithmMode === 'divide_conquer' ? ($value['dependencies'] ?? []) : [],
             'estimated_hours' => $estimatedHours,
             'order' => $value['order'] ?? 1,
             'is_critical_path' => $isCritical,
-            'resource_intensity' => $this->resourceIntensity($level),
-            'risk_level' => $this->riskLevel($level),
+            'resource_intensity' => $intensity,
+            'risk_level' => $finalRisk,
             'parallelizable' => $isParallel,
-            'priority_base_score' => $this->priorityScore($level),
-            'quick_win_score' => $this->quickWinScore($estimatedHours, $level),
-            'immediate_impact' => $this->immediateImpact($isCritical, $this->priorityScore($level), $level),
-            'effort_to_value_ratio' => $this->effortToValueRatio($estimatedHours, $this->immediateImpact($isCritical, $this->priorityScore($level), $level)),
+            'priority_base_score' => $priorityScore,
+            'quick_win_score' => $this->quickWinScore($estimatedHours, $internalLevel),
+            'immediate_impact' => $immediateImpact,
+            'effort_to_value_ratio' => $this->effortToValueRatio($estimatedHours, $immediateImpact),
             'responsible_id' => $value['responsible_id'] ?? null,
             'responsible_name' => $value['responsible_name'] ?? null,
             'target_role_name' => $value['target_role_name'] ?? null,
