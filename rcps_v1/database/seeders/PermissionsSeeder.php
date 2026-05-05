@@ -64,7 +64,8 @@ class PermissionsSeeder extends Seeder
 
         // Create default role
         $role = Role::firstOrCreate([
-            'name' => $this->defaultRole
+            'name' => $this->defaultRole,
+            'role_type' => 'CORE'
         ]);
         $settings = app(GeneralSettings::class);
         $settings->default_role = $role->id;

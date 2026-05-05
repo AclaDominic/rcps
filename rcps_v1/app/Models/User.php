@@ -67,8 +67,13 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
         parent::boot();
 
         static::creating(function (User $item) {
-            $item->password = bcrypt(uniqid());
-            $item->creation_token = Uuid::uuid4()->toString();
+            if (empty($item->password)) {
+                $item->password = bcrypt(uniqid());
+            }
+            
+            if (empty($item->creation_token)) {
+                $item->creation_token = Uuid::uuid4()->toString();
+            }
         });
 
         static::created(function (User $item) {
