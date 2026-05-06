@@ -503,25 +503,32 @@ class TaskComputationsService
             return $tasks;
         }
 
-        // Get all active users
-        $users = User::whereHas('roles', function ($q) {
-            $q->whereIn('role_type', ['STAFF']);
+        // Dynamic: Get all eligible users (exclude admin/CORE users)
+        // This adapts to any role configuration — no hardcoded role_type required
+        $allEligibleUsers = User::whereHas('roles', function ($q) {
+            $q->whereNotIn('role_type', ['CORE']);
         })->get();
 
-        if ($users->isEmpty()) {
+        if ($allEligibleUsers->isEmpty()) {
+            // Preserve form-selected assignments (via Target Role dropdown)
             foreach ($tasks as &$task) {
+                if (!empty($task['responsible_id'])) {
+                    $roleName = $task['target_role_name'] ?? 'selected role';
+                    $task['assignment_reason'] = "Assigned via Target Role ({$roleName})";
+                    continue;
+                }
                 $task['responsible_id'] = null;
                 $task['responsible_name'] = 'Unassigned';
-                $task['assignment_reason'] = 'No staff available';
+                $task['assignment_reason'] = 'No eligible users available';
             }
             return $tasks;
         }
 
         // Calculate existing DB workloads (from active tickets)
-        $userWorkloads = $this->calculateCurrentWorkloads($users);
+        $userWorkloads = $this->calculateCurrentWorkloads($allEligibleUsers);
 
         // Step 2: Get pending AI previews workload for this session
-        $pendingWorkloads = $this->getPendingAiPreviewsWorkload($users);
+        $pendingWorkloads = $this->getPendingAiPreviewsWorkload($allEligibleUsers);
 
         // Combine current and pending workloads
         foreach ($userWorkloads as $userId => &$workload) {
@@ -530,7 +537,7 @@ class TaskComputationsService
 
         // Precompute total historical ticket count per user (experience proxy)
         $userExperience = [];
-        foreach ($users as $user) {
+        foreach ($allEligibleUsers as $user) {
             $userExperience[$user->id] = Ticket::where('responsible_id', $user->id)->count();
         }
         
@@ -558,17 +565,38 @@ class TaskComputationsService
             $skillRequirements = $task['skill_requirements'] ?? [];
             $isCritical = $task['is_critical_path'] ?? false;
             
-            // Check if already assigned via role selection
-            if (!empty($task['responsible_id']) && !empty($task['target_role_name'])) {
+            // If user was already chosen via Target Role dropdown, keep that exact user
+            if (!empty($task['responsible_id'])) {
                 $userId = $task['responsible_id'];
                 $userWorkloads[$userId] = ($userWorkloads[$userId] ?? 0) + $estimatedHours;
-                $task['assignment_reason'] = "Assigned via Target Role (" . $task['target_role_name'] . ")";
+                $roleName = $task['target_role_name'] ?? 'selected role';
+                $task['assignment_reason'] = "Assigned via Target Role ({$roleName})";
                 continue;
             }
 
-            // Select appropriate user
+            // Dynamic: Filter user pool by target role if specified
+            $targetRoleName = $task['target_role_name'] ?? null;
+            if ($targetRoleName) {
+                // Narrow pool to users who have the specified role
+                $taskEligibleUsers = $allEligibleUsers->filter(function ($user) use ($targetRoleName) {
+                    return $user->hasRole($targetRoleName);
+                });
+            } else {
+                // No target role specified — use all eligible users
+                $taskEligibleUsers = $allEligibleUsers;
+            }
+
+            // Fallback: if no users match the target role, use the full pool
+            if ($taskEligibleUsers->isEmpty()) {
+                $taskEligibleUsers = $allEligibleUsers;
+                $task['assignment_note'] = $targetRoleName
+                    ? "No users with role '{$targetRoleName}' found, assigned from general pool"
+                    : null;
+            }
+
+            // Select appropriate user from the filtered pool
             $selectedUser = $this->selectResponsibleUser(
-                $users,
+                $taskEligibleUsers,
                 $userWorkloads,
                 $taskPriority,
                 $estimatedHours,
@@ -1491,15 +1519,37 @@ class TaskComputationsService
         // 1. Assign to someone who can do it quickly
         // 2. Balance workload but prioritize speed
         
-        // Get available team members (this is a simplified example)
+        // If user was already chosen via Target Role dropdown, keep that exact user
+        if (!empty($task['responsible_id'])) {
+            $roleName = $task['target_role_name'] ?? 'selected role';
+            $task['assignment_reason'] = "Assigned via Target Role ({$roleName})";
+            return $task;
+        }
 
-        $teamMembers = User::whereHas('roles', function ($q) {
-            $q->whereIn('role_type', ['STAFF']);
+        // Dynamic: Get all eligible team members (exclude admin/CORE users)
+        $allTeamMembers = User::whereHas('roles', function ($q) {
+            $q->whereNotIn('role_type', ['CORE']);
         })->get();
         
-        if (empty($teamMembers)) {
+        // Filter by target role if specified
+        $targetRoleName = $task['target_role_name'] ?? null;
+        if ($targetRoleName) {
+            $teamMembers = $allTeamMembers->filter(function ($user) use ($targetRoleName) {
+                return $user->hasRole($targetRoleName);
+            });
+            // Fallback to all eligible if no role-specific users found
+            if ($teamMembers->isEmpty()) {
+                $teamMembers = $allTeamMembers;
+                $task['assignment_note'] = "No users with role '{$targetRoleName}' found, assigned from general pool";
+            }
+        } else {
+            $teamMembers = $allTeamMembers;
+        }
+        
+        if ($teamMembers->isEmpty()) {
             $task['responsible_id'] = null;
             $task['responsible_name'] = 'Unassigned';
+            $task['assignment_reason'] = 'No eligible users available';
             return $task;
         }
         

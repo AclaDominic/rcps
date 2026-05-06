@@ -13,25 +13,29 @@ class TicketStatusSeeder extends Seeder
             'name' => 'Todo',
             'color' => '#cecece',
             'is_default' => true,
-            'order' => 1
+            'order' => 1,
+            'type' => 'pending'
         ],
         [
             'name' => 'In progress',
             'color' => '#ff7f00',
             'is_default' => false,
-            'order' => 2
+            'order' => 2,
+            'type' => 'active'
         ],
         [
             'name' => 'Done',
             'color' => '#008000',
             'is_default' => false,
-            'order' => 3
+            'order' => 3,
+            'type' => 'completed'
         ],
         [
             'name' => 'Archived',
             'color' => '#ff0000',
             'is_default' => false,
-            'order' => 4
+            'order' => 4,
+            'type' => 'completed'
         ],
     ];
 
