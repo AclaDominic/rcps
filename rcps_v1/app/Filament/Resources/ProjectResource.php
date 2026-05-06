@@ -441,6 +441,16 @@ class ProjectResource extends Resource
                                             ]),
                                     ])
                                     ->createItemButtonLabel('Add Another Main Task'),
+                                
+                                Forms\Components\View::make('components.projects.overall-computation')
+                                    ->viewData([
+                                        'allUsers' => \App\Models\User::with('roles')->get()->map(fn($u) => [
+                                            'name' => $u->name,
+                                            'role' => $u->getRoleNames()->first() ?? 'No Role',
+                                            'email' => $u->email,
+                                        ])->toArray(),
+                                    ])
+                                    ->columnSpanFull(),
                             ]),
                     ]),
             ]);
