@@ -18,11 +18,16 @@ return new class extends Migration
             $table->uuid('task_uuid');
             $table->string('project_name');
             $table->string('main_task_name');
-            $table->text('main_task_description');
-            $table->integer('ai_subtask_count');
-            $table->text('ai_description');
+            $table->text('main_task_description')->nullable();
+            $table->integer('ai_subtask_count')->default(0);
+            $table->text('ai_description')->nullable();
             $table->json('generated_tasks'); // Store the AI results as JSON
-            $table->integer('total_hours');
+            $table->decimal('total_hours', 10, 2)->default(0);
+            $table->date('start_date')->nullable();
+            $table->date('end_date')->nullable();
+            $table->json('complexity_data')->nullable();
+            $table->json('comparative_data')->nullable();
+            $table->string('algorithm_mode')->default('comparison');
             $table->string('session_id')->nullable(); // For temporary storage
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->timestamps();
