@@ -441,6 +441,9 @@ class ProjectResource extends Resource
                                             ]),
                                     ])
                                     ->createItemButtonLabel('Add Another Main Task'),
+                                
+                                Forms\Components\View::make('components.projects.overall-computation')
+                                    ->columnSpanFull(),
                             ]),
                     ]),
             ]);
