@@ -13,6 +13,7 @@
     activeTab: 'divide_conquer',
     selectedTask: null,
     showTaskDetails: false,
+    all_users: @js($allUsers ?? []),
 
     init() {
         this.updateOverall();
@@ -366,78 +367,117 @@
                     <button type="button" @click="activeTab = 'greedy'" 
                             :class="activeTab === 'greedy' ? 'bg-white dark:bg-gray-700 shadow-sm text-green-600 font-bold' : 'text-gray-500 hover:text-gray-700'"
                             class="flex-1 py-3 rounded-lg text-sm transition-all duration-200">Greedy Algorithm</button>
+                    <button type="button" @click="activeTab = 'team'" 
+                            :class="activeTab === 'team' ? 'bg-white dark:bg-gray-700 shadow-sm text-indigo-600 font-bold' : 'text-gray-500 hover:text-gray-700'"
+                            class="flex-1 py-3 rounded-lg text-sm transition-all duration-200">Team Directory</button>
                 </div>
 
                 <!-- Tab Content -->
                 <div class="space-y-6">
-                    <!-- Task List Table -->
-                    <div class="overflow-x-auto border border-gray-100 dark:border-gray-800 rounded-2xl">
-                        <table class="w-full text-left text-sm">
-                            <thead class="bg-gray-50 dark:bg-gray-800 text-gray-500 uppercase text-xs font-bold">
-                                <tr>
-                                    <th class="px-6 py-4">Task Title</th>
-                                    <th class="px-6 py-4">Responsible</th>
-                                    <th class="px-6 py-4">Priority</th>
-                                    <th class="px-6 py-4">Risk</th>
-                                    <th class="px-6 py-4">Est. Hours</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                                <template x-for="(task, index) in overall_preview?.algorithms?.[activeTab]?.tasks || []" :key="index">
-                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                                        <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white" x-text="task.title"></td>
-                                        <td class="px-6 py-4 text-gray-700 dark:text-gray-300">
-                                            <div class="flex items-center gap-2">
-                                                <div class="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-[10px] font-bold" x-text="task.responsible_name?.charAt(0)"></div>
-                                                <span x-text="task.responsible_name"></span>
-                                            </div>
-                                        </td>
-                                        <td class="px-6 py-4">
-                                            <span class="px-2.5 py-1 rounded-full text-[10px] uppercase font-black tracking-wider" 
-                                                  :class="getPriorityClass(task.priority_id)" 
-                                                  x-text="getPriorityText(task.priority_id)"></span>
-                                        </td>
-                                        <td class="px-6 py-4">
-                                            <span class="px-2.5 py-1 rounded-full text-[10px] uppercase font-black tracking-wider" 
-                                                  :class="getRiskClass(task.risk_level)" 
-                                                  x-text="task.risk_level"></span>
-                                        </td>
-                                        <td class="px-6 py-4 font-bold text-base" :class="getHoursClass(task.estimated_hours)" x-text="task.estimated_hours + 'h'"></td>
-                                    </tr>
-                                </template>
-                                
-                                <template x-if="!(overall_preview?.algorithms?.[activeTab]?.tasks?.length > 0)">
-                                    <tr>
-                                        <td colspan="5" class="px-6 py-12 text-center text-gray-500 italic">
-                                            No tasks generated for this algorithm yet.
-                                        </td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
+                    <!-- Task Tables (Visible for D&C and Greedy) -->
+                    <template x-if="activeTab !== 'team'">
+                        <div class="space-y-6">
+                            <div class="overflow-x-auto border border-gray-100 dark:border-gray-800 rounded-2xl">
+                                <table class="w-full text-left text-sm">
+                                    <thead class="bg-gray-50 dark:bg-gray-800 text-gray-500 uppercase text-xs font-bold">
+                                        <tr>
+                                            <th class="px-6 py-4">Task Title</th>
+                                            <th class="px-6 py-4">Responsible</th>
+                                            <th class="px-6 py-4">Priority</th>
+                                            <th class="px-6 py-4">Risk</th>
+                                            <th class="px-6 py-4">Est. Hours</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                                        <template x-for="(task, index) in overall_preview?.algorithms?.[activeTab]?.tasks || []" :key="index">
+                                            <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                                <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white" x-text="task.title"></td>
+                                                <td class="px-6 py-4 text-gray-700 dark:text-gray-300">
+                                                    <div class="flex items-center gap-2">
+                                                        <div class="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-[10px] font-bold" x-text="task.responsible_name?.charAt(0)"></div>
+                                                        <span x-text="task.responsible_name"></span>
+                                                    </div>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <span class="px-2.5 py-1 rounded-full text-[10px] uppercase font-black tracking-wider" 
+                                                          :class="getPriorityClass(task.priority_id)" 
+                                                          x-text="getPriorityText(task.priority_id)"></span>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <span class="px-2.5 py-1 rounded-full text-[10px] uppercase font-black tracking-wider" 
+                                                          :class="getRiskClass(task.risk_level)" 
+                                                          x-text="task.risk_level"></span>
+                                                </td>
+                                                <td class="px-6 py-4 font-bold text-base" :class="getHoursClass(task.estimated_hours)" x-text="task.estimated_hours + 'h'"></td>
+                                            </tr>
+                                        </template>
+                                        
+                                        <template x-if="!(overall_preview?.algorithms?.[activeTab]?.tasks?.length > 0)">
+                                            <tr>
+                                                <td colspan="5" class="px-6 py-12 text-center text-gray-500 italic">
+                                                    No tasks generated for this algorithm yet.
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
 
-                    <!-- User Workload Summary -->
-                    <div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-6">
-                        <h4 class="text-base font-bold text-gray-800 dark:text-white mb-4">Workload Distribution (Overall)</h4>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            <template x-for="user in getUserAssignments()" :key="user.name">
-                                <div class="p-4 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800">
-                                    <div class="flex items-center gap-3 mb-3">
-                                        <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold" x-text="user.name.charAt(0)"></div>
-                                        <div>
-                                            <div class="text-sm font-bold text-gray-900 dark:text-white" x-text="user.name"></div>
-                                            <div class="text-xs text-gray-500" x-text="user.role"></div>
+                            <!-- User Workload Summary -->
+                            <div class="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-6">
+                                <h4 class="text-base font-bold text-gray-800 dark:text-white mb-4">Workload Distribution (Overall)</h4>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <template x-for="user in getUserAssignments()" :key="user.name">
+                                        <div class="p-4 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800">
+                                            <div class="flex items-center gap-3 mb-3">
+                                                <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold" x-text="user.name.charAt(0)"></div>
+                                                <div>
+                                                    <div class="text-sm font-bold text-gray-900 dark:text-white" x-text="user.name"></div>
+                                                    <div class="text-xs text-gray-500" x-text="user.role"></div>
+                                                </div>
+                                            </div>
+                                            <div class="flex justify-between items-end">
+                                                <span class="text-xs text-gray-500">Tasks: <span class="font-bold text-gray-700" x-text="user.tasks.length"></span></span>
+                                                <span class="text-sm font-black text-indigo-600" x-text="user.tasks.reduce((sum, t) => sum + parseFloat(t.estimated_hours), 0).toFixed(1) + 'h'"></span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Team Directory (Visible for team tab) -->
+                    <template x-if="activeTab === 'team'">
+                        <div class="space-y-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <template x-for="user in all_users" :key="user.email">
+                                    <div class="p-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+                                        <div class="flex items-center gap-4">
+                                            <div class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black text-xl" x-text="user.name.charAt(0)"></div>
+                                            <div class="flex-1 min-w-0">
+                                                <h5 class="text-sm font-black text-gray-900 dark:text-white truncate" x-text="user.name"></h5>
+                                                <p class="text-xs text-gray-500 truncate" x-text="user.email"></p>
+                                            </div>
+                                        </div>
+                                        <div class="mt-4 flex items-center justify-between">
+                                            <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300" x-text="user.role"></span>
+                                            <div class="flex gap-1.5">
+                                                <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                                                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Active</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="flex justify-between items-end">
-                                        <span class="text-xs text-gray-500">Tasks: <span class="font-bold text-gray-700" x-text="user.tasks.length"></span></span>
-                                        <span class="text-sm font-black text-indigo-600" x-text="user.tasks.reduce((sum, t) => sum + parseFloat(t.estimated_hours), 0).toFixed(1) + 'h'"></span>
-                                    </div>
+                                </template>
+                            </div>
+
+                            <template x-if="all_users.length === 0">
+                                <div class="text-center py-12 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-dashed border-gray-200">
+                                    <p class="text-gray-500 italic">No users found in the directory.</p>
                                 </div>
                             </template>
                         </div>
-                    </div>
+                    </template>
                 </div>
             </div>
         </div>
