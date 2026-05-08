@@ -305,64 +305,38 @@ class TaskComputationsService
     {
         $score = 0;
         
-        // Factor 1: Time urgency (30% weight)
+        // Factor 1: Time urgency (45% weight)
         $startDate = Carbon::parse($projectData['start_date'] ?? now());
         $endDate = Carbon::parse($projectData['end_date'] ?? now()->addDays(30));
         $daysUntilStart = now()->diffInDays($startDate, false);
         $totalDays = $endDate->diffInDays($startDate);
         
         if ($daysUntilStart <= 2) {
-            $score += 30; // Starts very soon
+            $score += 45; // Starts very soon
         } elseif ($daysUntilStart <= 7) {
-            $score += 20; // Starts soon
+            $score += 30; // Starts soon
         } elseif ($daysUntilStart <= 14) {
-            $score += 10; // Starts in 2 weeks
+            $score += 15; // Starts in 2 weeks
         }
         
-        // Factor 2: Timeline tightness (25% weight)
+        // Factor 2: Timeline tightness (35% weight)
         if ($totalDays <= 7) {
-            $score += 25; // Very tight timeline
+            $score += 35; // Very tight timeline
         } elseif ($totalDays <= 14) {
-            $score += 20; // Tight timeline
+            $score += 25; // Tight timeline
         } elseif ($totalDays <= 30) {
-            $score += 10; // Moderate timeline
+            $score += 15; // Moderate timeline
         }
         
-        // Factor 3: Task complexity from description (20% weight)
-        $description = $projectData['main_task_description'] ?? '';
-        $wordCount = str_word_count(strip_tags($description));
-        
-        if ($wordCount > 500) {
-            $score += 20; // Very complex
-        } elseif ($wordCount > 250) {
-            $score += 15; // Complex
-        } elseif ($wordCount > 100) {
-            $score += 10; // Moderate
-        } elseif ($wordCount > 50) {
-            $score += 5; // Simple
-        }
-        
-        // Factor 4: Subtask count (15% weight)
+        // Factor 3: Subtask count (20% weight)
         $subtaskCount = $projectData['ai_subtask_count'] ?? 5;
         
         if ($subtaskCount > 15) {
-            $score += 15; // Many subtasks
+            $score += 20; // Many subtasks
         } elseif ($subtaskCount > 10) {
-            $score += 10; // Moderate subtasks
+            $score += 15; // Moderate subtasks
         } elseif ($subtaskCount > 5) {
             $score += 5; // Few subtasks
-        }
-        
-        // Factor 5: Description detail (10% weight)
-        $aiDescription = $projectData['ai_description'] ?? '';
-        $aiWordCount = str_word_count(strip_tags($aiDescription));
-        
-        if ($aiWordCount > 200) {
-            $score += 10; // Very detailed instructions
-        } elseif ($aiWordCount > 100) {
-            $score += 7; // Detailed instructions
-        } elseif ($aiWordCount > 50) {
-            $score += 4; // Basic instructions
         }
         
         // Convert score to priority (1=high, 2=normal, 3=low)
