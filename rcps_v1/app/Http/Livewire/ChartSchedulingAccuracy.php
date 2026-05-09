@@ -64,8 +64,8 @@ class ChartSchedulingAccuracy extends Component
             $query->whereMonth('metrics_date', $this->selectedMonth)
                   ->whereYear('metrics_date', $this->selectedYear);
         } elseif ($this->selectedWeek && $this->selectedYear) {
-            $query->whereRaw('YEAR(metrics_date) = ?', [$this->selectedYear])
-                  ->whereRaw('WEEK(metrics_date, 1) = ?', [$this->selectedWeek]);
+            $query->whereYear('metrics_date', $this->selectedYear)
+                  ->whereWeek('metrics_date', $this->selectedWeek);
         } elseif ($this->selectedYear) {
             $query->whereYear('metrics_date', $this->selectedYear);
         }
