@@ -171,6 +171,22 @@
     getUserAssignments() {
         const algorithm = this.activeTab;
         const tasks = this.overall_preview?.algorithms?.[algorithm]?.tasks || [];
+        
+        // Fallback to database tasks if no AI tasks are found for the active tab
+        if (tasks.length === 0) {
+            const assignments = {};
+            this.all_users.forEach(user => {
+                if (user.db_tasks && user.db_tasks.length > 0) {
+                    assignments[user.email] = {
+                        name: user.name,
+                        role: user.role || 'Assigned User',
+                        tasks: user.db_tasks
+                    };
+                }
+            });
+            return Object.values(assignments);
+        }
+
         const assignments = {};
         tasks.forEach(task => {
             const id = task.responsible_id;
@@ -190,7 +206,14 @@
     getUserTasks(user) {
         const alg = this.selectedAlgorithm || 'divide_conquer';
         const tasks = this.overall_preview?.algorithms?.[alg]?.tasks || [];
-        return tasks.filter(t => t.responsible_name === user.name);
+        const aiTasks = tasks.filter(t => t.responsible_name === user.name);
+        
+        // Fallback to database tasks if no AI tasks are found
+        if (aiTasks.length === 0 && user.db_tasks) {
+            return user.db_tasks;
+        }
+        
+        return aiTasks;
     },
 
     openUserTasks(user) {
