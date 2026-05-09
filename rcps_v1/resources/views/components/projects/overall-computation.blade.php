@@ -11,9 +11,12 @@
     isLoading: false,
     hasAnyGeneratedTasks: false,
     activeTab: 'divide_conquer',
+    selectedAlgorithm: 'divide_conquer',
     selectedTask: null,
     showTaskDetails: false,
     all_users: @js($allUsers ?? []),
+    selectedUser: null,
+    selectedUserTasks: [],
 
     init() {
         this.updateOverall();
@@ -182,6 +185,18 @@
             assignments[id].tasks.push(task);
         });
         return Object.values(assignments);
+    },
+
+    getUserTasks(user) {
+        const alg = this.selectedAlgorithm || 'divide_conquer';
+        const tasks = this.overall_preview?.algorithms?.[alg]?.tasks || [];
+        return tasks.filter(t => t.responsible_name === user.name);
+    },
+
+    openUserTasks(user) {
+        this.selectedUser = user;
+        this.selectedUserTasks = this.getUserTasks(user);
+        this.$dispatch('open-modal', { id: 'user-tasks-modal' });
     },
 
     getPriorityClass(priorityId) {
@@ -361,10 +376,10 @@
             <!-- Detailed Tabs -->
             <div class="mt-8">
                 <div class="flex gap-1 bg-gray-100 dark:bg-gray-800 p-1.5 rounded-xl mb-6">
-                    <button type="button" @click="activeTab = 'divide_conquer'" 
+                    <button type="button" @click="activeTab = 'divide_conquer'; selectedAlgorithm = 'divide_conquer'" 
                             :class="activeTab === 'divide_conquer' ? 'bg-white dark:bg-gray-700 shadow-sm text-blue-600 font-bold' : 'text-gray-500 hover:text-gray-700'"
                             class="flex-1 py-3 rounded-lg text-sm transition-all duration-200">Divide & Conquer</button>
-                    <button type="button" @click="activeTab = 'greedy'" 
+                    <button type="button" @click="activeTab = 'greedy'; selectedAlgorithm = 'greedy'" 
                             :class="activeTab === 'greedy' ? 'bg-white dark:bg-gray-700 shadow-sm text-green-600 font-bold' : 'text-gray-500 hover:text-gray-700'"
                             class="flex-1 py-3 rounded-lg text-sm transition-all duration-200">Greedy Algorithm</button>
                     <button type="button" @click="activeTab = 'team'" 
@@ -437,7 +452,7 @@
                                                 </div>
                                             </div>
                                             <div class="flex justify-between items-end">
-                                                <span class="text-xs text-gray-500">Tasks: <span class="font-bold text-gray-700" x-text="user.tasks.length"></span></span>
+                                                <span class="text-xs text-gray-500">Tasks: <button type="button" @click="openUserTasks(user)" class="font-bold text-indigo-600 hover:text-indigo-800 underline" x-text="user.tasks.length"></button></span>
                                                 <span class="text-sm font-black text-indigo-600" x-text="user.tasks.reduce((sum, t) => sum + parseFloat(t.estimated_hours), 0).toFixed(1) + 'h'"></span>
                                             </div>
                                         </div>
@@ -452,7 +467,14 @@
                         <div class="space-y-6">
                             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 <template x-for="user in all_users" :key="user.email">
-                                    <div class="p-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+                                    <div class="p-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-sm hover:shadow-md transition-shadow relative">
+                                        <!-- Task Count Badge -->
+                                        <div class="absolute top-4 right-4" x-show="getUserTasks(user).length > 0">
+                                            <button type="button" @click="openUserTasks(user)" class="inline-flex items-center justify-center w-6 h-6 text-xs font-bold text-white bg-indigo-600 rounded-full hover:bg-indigo-700 transition-colors shadow-sm" title="View assigned tasks">
+                                                <span x-text="getUserTasks(user).length"></span>
+                                            </button>
+                                        </div>
+
                                         <div class="flex items-center gap-4">
                                             <div class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-black text-xl" x-text="user.name.charAt(0)"></div>
                                             <div class="flex-1 min-w-0">
@@ -493,6 +515,69 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
                     Close Analysis
+                </button>
+            </div>
+        </x-slot>
+    </x-filament::modal>
+
+    <!-- USER TASKS MODAL -->
+    <x-filament::modal id="user-tasks-modal" width="3xl" :scrollable="true">
+        <x-slot name="heading">
+            <div class="flex items-center gap-3">
+                <div class="p-2 bg-indigo-100 rounded-lg">
+                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-white" x-text="selectedUser?.name + '\'s Tasks'"></h2>
+                    <p class="text-sm text-gray-500" x-text="'Assigned tasks for ' + (selectedAlgorithm === 'divide_conquer' ? 'Divide & Conquer' : 'Greedy')"></p>
+                </div>
+            </div>
+        </x-slot>
+
+        <div class="space-y-4 py-4">
+            <template x-if="selectedUserTasks.length > 0">
+                <div class="overflow-x-auto border border-gray-100 dark:border-gray-800 rounded-2xl">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-50 dark:bg-gray-800 text-gray-500 uppercase text-xs font-bold">
+                            <tr>
+                                <th class="px-6 py-4">Task Title</th>
+                                <th class="px-6 py-4">Priority</th>
+                                <th class="px-6 py-4">Est. Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
+                            <template x-for="(task, index) in selectedUserTasks" :key="index">
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                                    <td class="px-6 py-4 font-semibold text-gray-900 dark:text-white" x-text="task.title"></td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-2.5 py-1 rounded-full text-[10px] uppercase font-black tracking-wider" 
+                                              :class="getPriorityClass(task.priority_id)" 
+                                              x-text="getPriorityText(task.priority_id)"></span>
+                                    </td>
+                                    <td class="px-6 py-4 font-bold text-base" :class="getHoursClass(task.estimated_hours)" x-text="task.estimated_hours + 'h'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </template>
+            <template x-if="selectedUserTasks.length === 0">
+                <div class="text-center py-12 bg-gray-50 dark:bg-gray-900/50 rounded-2xl border border-dashed border-gray-200">
+                    <p class="text-gray-500 italic">No tasks assigned to this user.</p>
+                </div>
+            </template>
+        </div>
+
+        <x-slot name="footer">
+            <div class="flex justify-end gap-3">
+                <button 
+                    type="button"
+                    @click="$dispatch('close-modal', { id: 'user-tasks-modal' })"
+                    class="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl transition-all duration-200 flex items-center gap-2"
+                >
+                    Close
                 </button>
             </div>
         </x-slot>
