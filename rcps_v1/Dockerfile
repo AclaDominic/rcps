@@ -11,7 +11,7 @@ COPY .env.example .env
 COPY . .
 
 RUN apt-get update -y && \
-    apt-get install -y --no-install-recommends software-properties-common gnupg2 wget && \
+    apt-get install -y --no-install-recommends software-properties-common gnupg2 wget lsb-release && \
     echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/sury-php.list && \
     wget -qO - https://packages.sury.org/php/apt.gpg | apt-key add - && \
     apt-get update -y && \
