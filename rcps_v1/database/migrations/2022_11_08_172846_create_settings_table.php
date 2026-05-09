@@ -13,6 +13,7 @@ class CreateSettingsTable extends Migration
 
             $table->string('group')->index();
             $table->string('name');
+            $table->unique(['group', 'name']);
             $table->boolean('locked')->default(false);
             $table->json('payload');
 
