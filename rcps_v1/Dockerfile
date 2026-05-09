@@ -24,4 +24,7 @@ RUN apt-get update -y && \
     php artisan key:generate && \
     rm -rf /var/lib/apt/lists/*
 
+RUN chmod +x ./run.sh
+
 CMD [ "bash", "./run.sh"]
+

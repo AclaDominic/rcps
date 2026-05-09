@@ -448,6 +448,11 @@ class ProjectResource extends Resource
                                             'name' => $u->name,
                                             'role' => $u->getRoleNames()->first() ?? 'No Role',
                                             'email' => $u->email,
+                                            'db_tasks' => \App\Models\Ticket::where('responsible_id', $u->id)->get()->map(fn($t) => [
+                                                'title' => $t->name,
+                                                'priority_id' => $t->priority_id,
+                                                'estimated_hours' => $t->estimation,
+                                            ])->toArray(),
                                         ])->toArray(),
                                     ])
                                     ->columnSpanFull(),
