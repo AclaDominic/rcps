@@ -54,11 +54,12 @@ class AppServiceProvider extends ServiceProvider
             // Manifest not built yet!
         }
 
-        // Add custom meta (favicon)
+        // Add custom meta (favicon and CSP)
         Filament::pushMeta([
             new HtmlString('<link rel="icon"
                                        type="image/x-icon"
                                        href="' . config('app.logo') . '">'),
+            new HtmlString('<meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">'),
         ]);
 
         // Register navigation groups
