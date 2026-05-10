@@ -14,6 +14,7 @@
     end_date: '',
     main_task_name: '',
     main_task_description: '',
+    task_owner_id: '',
     ai_subtask_count: 0,
     ai_description: '',
     isLoading: false,
@@ -26,10 +27,11 @@
     subTaskData: [],
     
     init() {
-        const element = this.$el.closest('[wire\\:key]');
+        const element = this.$el.parentElement ? this.$el.parentElement.closest('[wire\\:key]') : this.$el.closest('[wire\\:key]');
         if (element) {
             const wireKey = element.getAttribute('wire:key');
-            this.currentUuid = wireKey.split('.').slice(-2, -1)[0];
+            const parts = wireKey.split('.');
+            this.currentUuid = parts.length > 1 ? parts[parts.length - 1] : wireKey;
         }
         this.updateFields();
         this.interval = setInterval(() => this.updateFields(), 300);
@@ -217,6 +219,7 @@
             // Update task-specific fields
             this.main_task_name = taskData.main_task_name || '';
             this.main_task_description = taskData.main_task_description || '';
+            this.task_owner_id = taskData.owner_id || '';
             
             // Check if we have generated tasks for THIS repeater
             const aiResults = component.get('aiResults') || {};
@@ -319,6 +322,10 @@
         }
         if (!this.main_task_description) {
             alert('Please fill in the Main Task Description.');
+            return;
+        }
+        if (!this.task_owner_id) {
+            alert('Please select a Task Owner.');
             return;
         }
 
