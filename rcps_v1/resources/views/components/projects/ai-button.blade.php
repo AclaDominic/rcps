@@ -306,8 +306,20 @@
     },
             
     async generateAI(mode) {
-        const subtaskMessage = this.getSubtasksAlertMessage();
+        if (!this.project_name) {
+            alert('Please fill in the Project Name.');
+            return;
+        }
+        if (!this.main_task_name) {
+            alert('Please fill in the Main Task Name.');
+            return;
+        }
+        if (!this.main_task_description) {
+            alert('Please fill in the Main Task Description.');
+            return;
+        }
 
+        const subtaskMessage = this.getSubtasksAlertMessage();
         if (subtaskMessage) {
             alert(subtaskMessage);
             return;
@@ -501,12 +513,7 @@
         <!-- Generate Computation Button (Both Algorithms) -->
         <button type="button"
                 x-on:click="generateAI('comparison')"
-                :disabled="!canGenerateAI()"
-                :class="{
-                    'bg-gray-400 cursor-not-allowed opacity-60': !canGenerateAI(),
-                    'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all': canGenerateAI()
-                }"
-                class="px-6 py-3 text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 min-w-[200px]">
+                class="px-6 py-3 text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 min-w-[200px] bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">
             <!-- Icon -->
             <svg x-show="!isLoading" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
@@ -518,8 +525,7 @@
             </svg>
             <!-- Text -->
             <span class="whitespace-nowrap">
-                <span x-show="!isLoading"
-                      x-text="!canGenerateAI() ? 'Fill All Fields First' : 'Generate Computation'"></span>
+                <span x-show="!isLoading">Generate Computation</span>
                 <span x-show="isLoading">Generating...</span>
             </span>
         </button>
