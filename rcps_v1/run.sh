@@ -8,9 +8,18 @@ until php artisan tinker --execute="DB::connection()->getPdo();" > /dev/null 2>&
 done
 echo "Database connected!"
 
-# Run fresh migrations and seeding every time
-echo "Running fresh migrations and seeding..."
-php artisan migrate:fresh --seed --force
+# Run migrations (safe, applies new ones without wiping)
+echo "Running migrations..."
+php artisan migrate --force
+
+# Check if database has data
+echo "Checking if database has data..."
+if php artisan tinker --execute="echo \App\Models\User::exists() ? 'true' : 'false';" | grep -q "true"; then
+    echo "Database has data. Skipping seeding."
+else
+    echo "Database is empty. Running seeding..."
+    php artisan db:seed --force
+fi
 
 # Run the rest of the commands
 php artisan queue:work &
