@@ -13,13 +13,10 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('notifications', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->string('type');
-            $table->morphs('notifiable');
-            $table->json('data');
-            $table->timestamp('read_at')->nullable();
-            $table->timestamps();
+        Schema::table('projects', function (Blueprint $table) {
+            $table->integer('dependency_mode')->nullable();
+            $table->string('comparison_id')->nullable();
+            $table->text('metadata')->nullable();
         });
     }
 
@@ -30,6 +27,8 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('notifications');
+        Schema::table('projects', function (Blueprint $table) {
+            $table->dropColumn(['dependency_mode', 'comparison_id', 'metadata']);
+        });
     }
 };

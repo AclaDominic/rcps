@@ -81,9 +81,7 @@ class ActivitiesReport extends BarChartWidget
                 'activity_id',
                 DB::raw('SUM(value) as value'),
             ])
-            ->whereRaw(
-                DB::raw("YEAR(created_at)=" . (is_null($params['year']) ? Carbon::now()->format('Y') : $params['year']))
-            )
+            ->whereYear('created_at', is_null($params['year']) ? Carbon::now()->format('Y') : $params['year'])
             ->where('user_id', $user->id)
             ->groupBy('activity_id')
             ->get();

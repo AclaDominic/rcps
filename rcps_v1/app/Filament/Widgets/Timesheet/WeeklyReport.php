@@ -81,16 +81,18 @@ class WeeklyReport extends BarChartWidget
 
     protected function filter(User $user, array $params)
     {
+        $dayExpr = DB::getDriverName() === 'pgsql' 
+            ? "TO_CHAR(created_at, 'YYYY-MM-DD')" 
+            : "DATE_FORMAT(created_at, '%Y-%m-%d')";
+
         return TicketHour::select([
-            DB::raw("DATE_FORMAT(created_at,'%Y-%m-%d') as day"),
+            DB::raw("$dayExpr as day"),
             DB::raw('SUM(value) as value'),
         ])
             ->whereBetween('created_at', [$params['weekStartDate'], $params['weekEndDate']])
-            ->whereRaw(
-                DB::raw("YEAR(created_at)=" . (is_null($params['year']) ? Carbon::now()->format('Y') : $params['year']))
-            )
+            ->whereYear('created_at', is_null($params['year']) ? Carbon::now()->format('Y') : $params['year'])
             ->where('user_id', $user->id)
-            ->groupBy(DB::raw("DATE_FORMAT(created_at,'%Y-%m-%d')"))
+            ->groupBy(DB::raw($dayExpr))
             ->get();
     }
 
