@@ -179,7 +179,17 @@
 
             if (formData.add_task) {
                 console.log('Available Task UUIDs:', Object.keys(formData.add_task));
-                console.log('Current tracked UUID:', this.currentUuid);
+                
+                const keys = Object.keys(formData.add_task);
+                const element = this.$el.closest('[data-index]');
+                const index = element ? element.getAttribute('data-index') : null;
+                
+                if (index !== null && keys[index]) {
+                    this.currentUuid = keys[index];
+                    console.log('Resolved UUID from index:', this.currentUuid);
+                } else {
+                    console.log('Current tracked UUID:', this.currentUuid);
+                }
             }
 
             if (!formData.add_task || !formData.add_task[this.currentUuid]) continue;
