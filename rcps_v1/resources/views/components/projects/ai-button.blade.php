@@ -178,17 +178,34 @@
             }
 
             if (formData.add_task) {
-                console.log('Available Task UUIDs:', Object.keys(formData.add_task));
-                
                 const keys = Object.keys(formData.add_task);
-                const element = this.$el.closest('[data-index]');
-                const index = element ? element.getAttribute('data-index') : null;
+                let resolvedUuid = null;
                 
-                if (index !== null && keys[index]) {
-                    this.currentUuid = keys[index];
-                    console.log('Resolved UUID from index:', this.currentUuid);
-                } else {
-                    console.log('Current tracked UUID:', this.currentUuid);
+                // 1. Try to use currentUuid if it's already a valid key
+                if (this.currentUuid && keys.includes(this.currentUuid)) {
+                    resolvedUuid = this.currentUuid;
+                } 
+                // 2. Try to use currentUuid as an index if it's a number
+                else if (this.currentUuid !== null && !isNaN(this.currentUuid) && keys[parseInt(this.currentUuid)]) {
+                    resolvedUuid = keys[parseInt(this.currentUuid)];
+                }
+                // 3. Try to find data-index attribute
+                else {
+                    const element = this.$el.closest('[data-index]');
+                    const index = element ? element.getAttribute('data-index') : null;
+                    
+                    if (index !== null && keys[index]) {
+                        resolvedUuid = keys[index];
+                    } 
+                    // 4. Fallback: If only one task exists, use it!
+                    else if (keys.length === 1) {
+                        resolvedUuid = keys[0];
+                    }
+                }
+
+                if (resolvedUuid && resolvedUuid !== this.currentUuid) {
+                    console.log('Resolved new UUID for task:', resolvedUuid);
+                    this.currentUuid = resolvedUuid;
                 }
             }
 
