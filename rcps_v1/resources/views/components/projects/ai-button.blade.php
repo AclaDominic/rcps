@@ -177,6 +177,11 @@
                 this.algorithm_mode = formData.algorithm_mode || 'divide_conquer';
             }
 
+            if (formData.add_task) {
+                console.log('Available Task UUIDs:', Object.keys(formData.add_task));
+                console.log('Current tracked UUID:', this.currentUuid);
+            }
+
             if (!formData.add_task || !formData.add_task[this.currentUuid]) continue;
             
             // Get data for THIS specific repeater
