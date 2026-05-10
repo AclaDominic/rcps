@@ -27,24 +27,45 @@ class GeneralSystemSeeder extends Seeder
      */
     public function run()
     {
-        // 1. Generate Users
-        User::factory(10)->create();
-        $allUsers = User::all();
-
-        // 1.5 Generate Roles and Assign to Users
-        $roles = [
-            ['name' => 'Project Manager', 'role_type' => 'MANAGER'],
-            ['name' => 'Developer', 'role_type' => 'MEMBER'],
-            ['name' => 'QA Engineer', 'role_type' => 'MEMBER'],
+        // 1. Generate Specific Users for Roles
+        $rolesToSeed = [
+            'Scrum Master',
+            'Business Analyst',
+            'Software Architect',
+            'Software Engineer',
+            'DevOps Engineer',
+            'UI/UX Designer',
+            'Database Administrator (DBA)',
+            'Technical Writer'
         ];
-        foreach ($roles as $role) {
-            \App\Models\Role::firstOrCreate(['name' => $role['name']], $role);
+
+        foreach ($rolesToSeed as $roleName) {
+            \App\Models\Role::firstOrCreate(['name' => $roleName], ['role_type' => 'MEMBER']);
         }
+
+        $defaultUser = User::where('email', 'admintest2025@yopmail.com')->first();
+        
+        $specificUsers = collect();
+        if ($defaultUser) {
+            $specificUsers->push($defaultUser);
+        }
+
+        foreach ($rolesToSeed as $roleName) {
+            $user = User::factory()->create([
+                'name' => 'Mock ' . $roleName,
+                'email' => Str::slug($roleName) . '@example.com',
+            ]);
+            $user->syncRoles([$roleName]);
+            $specificUsers->push($user);
+        }
+
+        User::factory(5)->create();
+        $allUsers = User::all();
 
         $allRoles = \App\Models\Role::whereIn('role_type', ['MANAGER', 'MEMBER'])->get();
 
         foreach ($allUsers as $user) {
-            if ($user->roles->count() === 0) {
+            if ($user->roles->count() === 0 && $allRoles->count() > 0) {
                 $user->assignRole($allRoles->random());
             }
         }
@@ -80,7 +101,12 @@ class GeneralSystemSeeder extends Seeder
             ]);
 
             // Assign users to project
-            $projectUsers = $allUsers->random(rand(3, 7));
+            if ($i == 1) {
+                $projectUsers = $specificUsers->merge($allUsers->random(min(3, $allUsers->count())))->unique('id');
+            } else {
+                $projectUsers = $allUsers->random(min(rand(3, 7), $allUsers->count()));
+            }
+
             foreach ($projectUsers as $user) {
                 // Ensure no duplicate attachments if user is already attached
                 if (!$project->users()->where('user_id', $user->id)->exists()) {
@@ -106,6 +132,23 @@ class GeneralSystemSeeder extends Seeder
                 $ticketTypes = TicketType::all();
                 $ticketPriorities = TicketPriority::all();
                 $ticketStatuses = TicketStatus::all();
+
+                if ($i == 1 && $j == 1) {
+                    foreach ($specificUsers as $user) {
+                        Ticket::create([
+                            'name' => 'Task for ' . $user->name,
+                            'content' => 'This is a task assigned to ' . $user->name,
+                            'owner_id' => $project->owner_id,
+                            'responsible_id' => $user->id,
+                            'status_id' => $ticketStatuses->random()->id,
+                            'project_id' => $project->id,
+                            'type_id' => $ticketTypes->random()->id,
+                            'priority_id' => $ticketPriorities->random()->id,
+                            'estimation' => rand(2, 8),
+                            'sprint_id' => $sprint->id,
+                        ]);
+                    }
+                }
 
                 for ($k = 1; $k <= 5; $k++) {
                     $ticket = Ticket::create([
