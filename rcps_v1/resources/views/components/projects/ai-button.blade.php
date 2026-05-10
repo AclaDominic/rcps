@@ -168,9 +168,6 @@
 
             // Update common fields if they exist in this component
             if (formData.name) {
-                if (formData.name !== this.project_name) {
-                    console.log('Project Name:Entry detected');
-                }
                 this.project_name = formData.name;
                 this.start_date = formData.start_date || '';
                 this.end_date = formData.end_date || '';
@@ -204,7 +201,6 @@
                 }
 
                 if (resolvedUuid && resolvedUuid !== this.currentUuid) {
-                    console.log('Resolved new UUID for task:', resolvedUuid);
                     this.currentUuid = resolvedUuid;
                 }
             }
@@ -222,12 +218,6 @@
 
             // First pass: assign numbers
             Object.entries(rawSubtasks).forEach(([uuid, subtask]) => {
-                if (subtask.subtask_title && (!this.subTaskData || !this.subTaskData[index] || subtask.subtask_title !== this.subTaskData[index].subtask_title)) {
-                    console.log(`Sub Task Title #${index}:Entry detected`);
-                }
-                if (subtask.subtask_description && (!this.subTaskData || !this.subTaskData[index] || subtask.subtask_description !== this.subTaskData[index].subtask_description)) {
-                    console.log(`Sub Task Description #${index}:Entry detected`);
-                }
                 if (!subtask.subtask_title) return; // skip empty
 
                 uuidToIndex[uuid] = index;
@@ -256,13 +246,6 @@
             this.subTaskData = numberedSubtasks;
             
             // Update task-specific fields
-            if (taskData.main_task_name && taskData.main_task_name !== this.main_task_name) {
-                console.log('Main Task Name:Entry detected');
-            }
-            if (taskData.main_task_description && taskData.main_task_description !== this.main_task_description) {
-                console.log('Main Task Description:Entry detected');
-            }
-            
             this.main_task_name = taskData.main_task_name || '';
             this.main_task_description = taskData.main_task_description || '';
             
