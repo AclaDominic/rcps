@@ -164,7 +164,17 @@
             const component = components[id];
             const formData = component.get('data');
             
-            if (!formData || !formData.add_task || !formData.add_task[this.currentUuid]) continue;
+            if (!formData) continue;
+
+            // Update common fields if they exist in this component
+            if (formData.name) {
+                this.project_name = formData.name;
+                this.start_date = formData.start_date || '';
+                this.end_date = formData.end_date || '';
+                this.algorithm_mode = formData.algorithm_mode || 'divide_conquer';
+            }
+
+            if (!formData.add_task || !formData.add_task[this.currentUuid]) continue;
             
             // Get data for THIS specific repeater
             const taskData = formData.add_task[this.currentUuid];
@@ -203,13 +213,6 @@
             });
 
             this.subTaskData = numberedSubtasks;
-            
-            
-            // Update common fields
-            this.project_name = formData.name || '';
-            this.start_date = formData.start_date || '';
-            this.end_date = formData.end_date || '';
-            this.algorithm_mode = formData.algorithm_mode || 'divide_conquer';
             
             // Update task-specific fields
             this.main_task_name = taskData.main_task_name || '';
