@@ -15,6 +15,8 @@ return new class extends Migration
     {
         Schema::table('projects', function (Blueprint $table) {
             $table->integer('dependency_mode')->nullable();
+            $table->string('comparison_id')->nullable();
+            $table->text('metadata')->nullable();
         });
     }
 
@@ -26,7 +28,7 @@ return new class extends Migration
     public function down()
     {
         Schema::table('projects', function (Blueprint $table) {
-            $table->dropColumn('dependency_mode');
+            $table->dropColumn(['dependency_mode', 'comparison_id', 'metadata']);
         });
     }
 };
