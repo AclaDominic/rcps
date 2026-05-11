@@ -33,7 +33,7 @@ class Ticket extends Model implements HasMedia
         'priority_id', 'estimation', 'epic_id', 'sprint_id',
         'dependency_mode', 'execution_time', 'resource_utilization',
         'scheduling_accuracy', 'metrics_date','main_task_id','parent_ticket_id',
-        'start_date','due_date', 'metadata'
+        'start_date','due_date', 'metadata', 'assignment_assessment'
     ];
 
     public static function boot()

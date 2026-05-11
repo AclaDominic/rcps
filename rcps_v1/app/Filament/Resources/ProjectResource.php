@@ -397,48 +397,26 @@ class ProjectResource extends Resource
                                                         ->reactive()
                                                         ->afterStateUpdated(function ($state, callable $set) {
                                                             if ($state) {
-                                                                $users = \App\Models\User::role($state)->get();
-                                                                if ($users->isNotEmpty()) {
-                                                                    $randomUser = $users->random();
-                                                                    $set('responsible_id', $randomUser->id);
-                                                                    $set('responsible_name', $randomUser->name);
-                                                                    $set('target_role_name', $state);
-                                                                } else {
-                                                                    $set('responsible_id', null);
-                                                                    $set('responsible_name', 'No user found for role');
-                                                                    $set('target_role_name', null);
-                                                                }
+                                                                $set('target_role_name', $state);
+                                                                $set('responsible_id', null);
+                                                                $set('responsible_name', 'Will be computed...');
+                                                                $set('assignment_assessment', 'Will be computed...');
                                                             } else {
+                                                                $set('target_role_name', null);
                                                                 $set('responsible_id', null);
                                                                 $set('responsible_name', null);
-                                                                $set('target_role_name', null);
+                                                                $set('assignment_assessment', null);
                                                             }
                                                         }),
                                                     Forms\Components\Hidden::make('responsible_id'),
                                                     Forms\Components\Hidden::make('target_role_name'),
-                                                    Forms\Components\TextInput::make('responsible_name')
-                                                        ->label('Assigned User')
-                                                        ->disabled(),    
+
 
                                                 ]),    
                                             ]),
  
                                         
-                                        Forms\Components\Grid::make()
-                                            ->columns(2)
-                                            ->schema([
-                                                Forms\Components\View::make('components.projects.ai-button')
-                                                    ->extraAttributes(function ($get, $index) {
-                                                        return [
-                                                        'wire:key' => 'ai-task-button-' . uniqid(),
-                                                        'data-index' => $index,
-                                                        ];
-                                                    })
-                                                    ->viewData([
-                                                        'index' => 0,
-                                                    ])
-                                                    ->reactive()
-                                            ]),
+
                                     ])
                                     ->createItemButtonLabel('Add Another Main Task'),
                                 
@@ -448,10 +426,11 @@ class ProjectResource extends Resource
                                             'name' => $u->name,
                                             'role' => $u->getRoleNames()->first() ?? 'No Role',
                                             'email' => $u->email,
-                                            'db_tasks' => \App\Models\Ticket::where('responsible_id', $u->id)->get()->map(fn($t) => [
+                                            'db_tasks' => \App\Models\Ticket::where('responsible_id', $u->id)->with('project')->get()->map(fn($t) => [
                                                 'title' => $t->name,
                                                 'priority_id' => $t->priority_id,
                                                 'estimated_hours' => $t->estimation,
+                                                'project_name' => $t->project?->name ?? 'No Project',
                                             ])->toArray(),
                                         ])->toArray(),
                                     ])

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Permission;
+use App\Models\PermissionParent;
 use App\Models\Role;
 use App\Models\User;
 use App\Settings\GeneralSettings;
@@ -44,22 +45,39 @@ class PermissionsSeeder extends Seeder
         foreach ($this->modules as $module) {
             $plural = Str::plural($module);
             $singular = $module;
+
+            $parent = PermissionParent::firstOrCreate([
+                'name' => ucfirst($module),
+                'is_active' => 'Y'
+            ]);
+
             foreach ($this->pluralActions as $action) {
-                Permission::firstOrCreate([
+                $permission = Permission::firstOrCreate([
                     'name' => $action . ' ' . $plural
                 ]);
+                $permission->permission_parent_id = $parent->id;
+                $permission->save();
             }
             foreach ($this->singularActions as $action) {
-                Permission::firstOrCreate([
+                $permission = Permission::firstOrCreate([
                     'name' => $action . ' ' . $singular
                 ]);
+                $permission->permission_parent_id = $parent->id;
+                $permission->save();
             }
         }
 
+        $extraParent = PermissionParent::firstOrCreate([
+            'name' => 'General',
+            'is_active' => 'Y'
+        ]);
+
         foreach ($this->extraPermissions as $permission) {
-            Permission::firstOrCreate([
+            $perm = Permission::firstOrCreate([
                 'name' => $permission
             ]);
+            $perm->permission_parent_id = $extraParent->id;
+            $perm->save();
         }
 
         // Create default role
