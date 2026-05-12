@@ -1,4 +1,4 @@
-<?php 
+<?php
 namespace App\Services;
 
 use App\Models\AiTaskPreview;
@@ -28,34 +28,88 @@ class TaskComputationsService
         ]));
 
         $highKeywords = [
-            'api', 'oauth', 'authentication', 'authorization', 'encrypt', 'encryption',
-            'microservice', 'kubernetes', 'docker', 'distributed', 'concurrent', 'real-time',
-            'realtime', 'webhook', 'elasticsearch', 'redis', 'cache', 'queue', 'async',
-            'migration', 'architecture', 'infrastructure', 'compliance', 'security',
-            'algorithm', 'optimize', 'optimization', 'scalable', 'performance',
-            'pipeline', 'multi-tenant', 'multitenant', 'rbac', 'jwt', 'ssl', 'tls',
-            'load balancing', 'sharding', 'replication', 'failover', 'zero-downtime',
+            'api',
+            'oauth',
+            'authentication',
+            'authorization',
+            'encrypt',
+            'encryption',
+            'microservice',
+            'kubernetes',
+            'docker',
+            'distributed',
+            'concurrent',
+            'real-time',
+            'realtime',
+            'webhook',
+            'elasticsearch',
+            'redis',
+            'cache',
+            'queue',
+            'async',
+            'migration',
+            'architecture',
+            'infrastructure',
+            'compliance',
+            'security',
+            'algorithm',
+            'optimize',
+            'optimization',
+            'scalable',
+            'performance',
+            'pipeline',
+            'multi-tenant',
+            'multitenant',
+            'rbac',
+            'jwt',
+            'ssl',
+            'tls',
+            'load balancing',
+            'sharding',
+            'replication',
+            'failover',
+            'zero-downtime',
         ];
 
         $mediumKeywords = [
-            'integrate', 'integration', 'configure', 'configuration', 'implement',
-            'database', 'connect', 'validate', 'validation', 'monitor', 'monitoring',
-            'automate', 'automation', 'workflow', 'notification', 'deploy', 'deployment',
-            'report', 'dashboard', 'filter', 'search', 'upload', 'export', 'import',
+            'integrate',
+            'integration',
+            'configure',
+            'configuration',
+            'implement',
+            'database',
+            'connect',
+            'validate',
+            'validation',
+            'monitor',
+            'monitoring',
+            'automate',
+            'automation',
+            'workflow',
+            'notification',
+            'deploy',
+            'deployment',
+            'report',
+            'dashboard',
+            'filter',
+            'search',
+            'upload',
+            'export',
+            'import',
         ];
 
-        $highFound   = count(array_filter($highKeywords,   fn($k) => strpos($allText, $k) !== false));
+        $highFound = count(array_filter($highKeywords, fn($k) => strpos($allText, $k) !== false));
         $mediumFound = count(array_filter($mediumKeywords, fn($k) => strpos($allText, $k) !== false));
         $keywordScore = min(100, ($highFound * 15) + ($mediumFound * 5));
 
         $factors['keyword_complexity'] = [
-            'score'  => $keywordScore,
+            'score' => $keywordScore,
             'weight' => 0.35,
-            'label'  => match (true) {
+            'label' => match (true) {
                 $keywordScore >= 60 => 'High Technical Complexity',
                 $keywordScore >= 30 => 'Moderate Technical Complexity',
                 $keywordScore >= 10 => 'Some Technical Elements',
-                default             => 'Basic Task',
+                default => 'Basic Task',
             },
         ];
 
@@ -64,81 +118,81 @@ class TaskComputationsService
         $subtaskCount = max(1, (int) ($projectData['ai_subtask_count'] ?? 1));
         $subtaskScore = match (true) {
             $subtaskCount >= 13 => 80,
-            $subtaskCount >= 8  => 60,
-            $subtaskCount >= 4  => 40,
-            default             => 20,
+            $subtaskCount >= 8 => 60,
+            $subtaskCount >= 4 => 40,
+            default => 20,
         };
 
         $factors['subtasks'] = [
-            'score'  => $subtaskScore,
+            'score' => $subtaskScore,
             'weight' => 0.25,
-            'label'  => match (true) {
+            'label' => match (true) {
                 $subtaskCount >= 13 => 'Very Many',
-                $subtaskCount >= 8  => 'Many',
-                $subtaskCount >= 4  => 'Moderate',
-                default             => 'Few',
+                $subtaskCount >= 8 => 'Many',
+                $subtaskCount >= 4 => 'Moderate',
+                default => 'Few',
             },
         ];
 
         // --- Factor 3: Timeline Pressure (20%) ---
         // Use days-per-task so short projects with few tasks aren't unfairly penalized.
-        $startDate   = Carbon::parse($projectData['start_date'] ?? now());
-        $endDate     = Carbon::parse($projectData['end_date'] ?? now());
-        $totalDays   = max(1, $endDate->diffInDays($startDate));
+        $startDate = Carbon::parse($projectData['start_date'] ?? now());
+        $endDate = Carbon::parse($projectData['end_date'] ?? now());
+        $totalDays = max(1, $endDate->diffInDays($startDate));
         $daysPerTask = $totalDays / $subtaskCount;
 
         $timelineScore = match (true) {
-            $daysPerTask <= 2  => 80,
-            $daysPerTask <= 5  => 65,
+            $daysPerTask <= 2 => 80,
+            $daysPerTask <= 5 => 65,
             $daysPerTask <= 14 => 45,
-            default            => 20,
+            default => 20,
         };
 
         $factors['timeline_pressure'] = [
-            'score'  => $timelineScore,
+            'score' => $timelineScore,
             'weight' => 0.20,
-            'label'  => match (true) {
-                $daysPerTask <= 2  => 'Very Tight',
-                $daysPerTask <= 5  => 'Tight',
+            'label' => match (true) {
+                $daysPerTask <= 2 => 'Very Tight',
+                $daysPerTask <= 5 => 'Tight',
                 $daysPerTask <= 14 => 'Moderate',
-                default            => 'Relaxed',
+                default => 'Relaxed',
             },
         ];
 
         // --- Factor 4: Description Completeness (15%) ---
         // Signals how well-defined the task is; uses combined word count as a proxy.
-        $mainDesc       = strip_tags($projectData['main_task_description'] ?? '');
-        $subDesc        = strip_tags($projectData['subtask_description'] ?? '');
+        $mainDesc = strip_tags($projectData['main_task_description'] ?? '');
+        $subDesc = strip_tags($projectData['subtask_description'] ?? '');
         $totalDescWords = str_word_count($mainDesc) + str_word_count($subDesc);
 
         $descScore = match (true) {
             $totalDescWords >= 150 => 80,
-            $totalDescWords >= 80  => 60,
-            $totalDescWords >= 30  => 40,
-            default                => 20,
+            $totalDescWords >= 80 => 60,
+            $totalDescWords >= 30 => 40,
+            default => 20,
         };
 
         $factors['description_completeness'] = [
-            'score'  => $descScore,
+            'score' => $descScore,
             'weight' => 0.15,
-            'label'  => match (true) {
+            'label' => match (true) {
                 $totalDescWords >= 150 => 'Thorough',
-                $totalDescWords >= 80  => 'Detailed',
-                $totalDescWords >= 30  => 'Basic',
-                default                => 'Sparse',
+                $totalDescWords >= 80 => 'Detailed',
+                $totalDescWords >= 30 => 'Basic',
+                default => 'Sparse',
             },
         ];
 
         // --- Factor 5: Task Name Signals (5%) ---
-        $taskName        = strtolower(strip_tags($projectData['main_task_name'] ?? ''));
-        $nameHighFound   = count(array_filter($highKeywords,   fn($k) => strpos($taskName, $k) !== false));
+        $taskName = strtolower(strip_tags($projectData['main_task_name'] ?? ''));
+        $nameHighFound = count(array_filter($highKeywords, fn($k) => strpos($taskName, $k) !== false));
         $nameMediumFound = count(array_filter($mediumKeywords, fn($k) => strpos($taskName, $k) !== false));
-        $nameScore       = min(100, ($nameHighFound * 30) + ($nameMediumFound * 15) + (str_word_count($taskName) >= 4 ? 20 : 10));
+        $nameScore = min(100, ($nameHighFound * 30) + ($nameMediumFound * 15) + (str_word_count($taskName) >= 4 ? 20 : 10));
 
         $factors['task_name'] = [
-            'score'  => $nameScore,
+            'score' => $nameScore,
             'weight' => 0.05,
-            'label'  => $nameHighFound > 0 ? 'Technical Name' : ($nameMediumFound > 0 ? 'Descriptive Name' : 'Simple Name'),
+            'label' => $nameHighFound > 0 ? 'Technical Name' : ($nameMediumFound > 0 ? 'Descriptive Name' : 'Simple Name'),
         ];
 
         // --- Total weighted score (weights sum to exactly 1.0) ---
@@ -153,7 +207,7 @@ class TaskComputationsService
             $totalScore >= 65 => 4,
             $totalScore >= 50 => 3,
             $totalScore >= 35 => 2,
-            default           => 1,
+            default => 1,
         };
 
         $levelLabel = match ($levelNum) {
@@ -165,16 +219,16 @@ class TaskComputationsService
         };
 
         return [
-            'score'     => round($totalScore, 1),
-            'level'     => $levelLabel,
+            'score' => round($totalScore, 1),
+            'level' => $levelLabel,
             'level_num' => $levelNum,
-            'factors'   => $factors,
+            'factors' => $factors,
             'breakdown' => [
-                'total_days'            => $totalDays,
-                'subtask_count'         => $subtaskCount,
-                'days_per_task'         => round($daysPerTask, 1),
-                'total_desc_words'      => $totalDescWords,
-                'high_keywords_found'   => $highFound,
+                'total_days' => $totalDays,
+                'subtask_count' => $subtaskCount,
+                'days_per_task' => round($daysPerTask, 1),
+                'total_desc_words' => $totalDescWords,
+                'high_keywords_found' => $highFound,
                 'medium_keywords_found' => $mediumFound,
             ],
         ];
@@ -189,20 +243,20 @@ class TaskComputationsService
 
         $totalTasks = count($tasks);
         $mainTaskPriority = $this->calculateMainTaskPriority($projectData);
-        
+
         // Debug: Log the inputs
         Log::info('Priority Assignment Debug', [
             'total_tasks' => $totalTasks,
             'main_task_priority' => $mainTaskPriority,
             'task_count' => count($tasks)
         ]);
-        
+
         // Calculate priority distribution based on task count
         $priorityRanges = $this->calculatePriorityDistribution($totalTasks, $mainTaskPriority);
-        
+
         // Debug: Log the ranges
         Log::info('Priority Ranges', $priorityRanges);
-        
+
         // Score each task
         $scoredTasks = [];
         foreach ($tasks as $index => $task) {
@@ -213,7 +267,7 @@ class TaskComputationsService
                 'index' => $index
             ];
         }
-        
+
         // Debug: Log scores
         foreach ($scoredTasks as $scored) {
             Log::info('Task Score', [
@@ -223,27 +277,27 @@ class TaskComputationsService
                 'dependencies' => count($scored['task']['dependencies'] ?? [])
             ]);
         }
-        
+
         // Sort by score (descending)
-        usort($scoredTasks, function($a, $b) {
+        usort($scoredTasks, function ($a, $b) {
             return $b['score'] <=> $a['score'];
         });
-        
+
         // Assign priorities based on calculated distribution
         $assignedTasks = [];
         $priorityCounts = ['high' => 0, 'normal' => 0, 'low' => 0];
-        
+
         // Calculate how many tasks should get each priority
         $highCount = max(1, ceil($priorityRanges['high'] * $totalTasks));
         $normalCount = max(1, ceil($priorityRanges['normal'] * $totalTasks));
         $lowCount = max(1, ceil($priorityRanges['low'] * $totalTasks));
-        
+
         Log::info('Priority Count Targets', [
             'high' => $highCount,
             'normal' => $normalCount,
             'low' => $lowCount
         ]);
-        
+
         foreach ($scoredTasks as $scored) {
             // Determine priority based on position in sorted list
             if ($priorityCounts['high'] < $highCount) {
@@ -256,24 +310,27 @@ class TaskComputationsService
                 $priority = 3;
                 $priorityKey = 'low';
             }
-            
+
             // Note: critical path tasks naturally rank higher via calculateTaskPriorityScore (+35pts),
             // so no hard override needed — let the distribution quota control the counts.
             $finalPriority = $priority;
-            
+
             // Convert back to priority key
-            if ($finalPriority == 1) $priorityKey = 'high';
-            elseif ($finalPriority == 3) $priorityKey = 'low';
-            else $priorityKey = 'normal';
-            
+            if ($finalPriority == 1)
+                $priorityKey = 'high';
+            elseif ($finalPriority == 3)
+                $priorityKey = 'low';
+            else
+                $priorityKey = 'normal';
+
             $scored['task']['priority_id'] = $finalPriority;
             $scored['task']['priority_score'] = $scored['score'];
             $scored['task']['priority_range'] = $priorityKey;
             $scored['task']['priority_name'] = $this->getPriorityName($finalPriority);
-            
+
             $priorityCounts[$priorityKey]++;
             $assignedTasks[$scored['index']] = $scored['task'];
-            
+
             Log::info('Assigned Priority', [
                 'title' => $scored['task']['title'],
                 'score' => $scored['score'],
@@ -281,12 +338,12 @@ class TaskComputationsService
                 'priority_name' => $scored['task']['priority_name']
             ]);
         }
-        
+
         // Sort back to original order
         ksort($assignedTasks);
-        
+
         Log::info('Final Priority Distribution', $priorityCounts);
-        
+
         return array_values($assignedTasks);
     }
 
@@ -297,20 +354,20 @@ class TaskComputationsService
             2 => 'Normal',
             3 => 'Low'
         ];
-        
+
         return $names[$priorityId] ?? 'Normal';
     }
 
     protected function calculateMainTaskPriority($projectData)
     {
         $score = 0;
-        
+
         // Factor 1: Time urgency (45% weight)
         $startDate = Carbon::parse($projectData['start_date'] ?? now());
         $endDate = Carbon::parse($projectData['end_date'] ?? now()->addDays(30));
         $daysUntilStart = now()->diffInDays($startDate, false);
         $totalDays = $endDate->diffInDays($startDate);
-        
+
         if ($daysUntilStart <= 2) {
             $score += 45; // Starts very soon
         } elseif ($daysUntilStart <= 7) {
@@ -318,7 +375,7 @@ class TaskComputationsService
         } elseif ($daysUntilStart <= 14) {
             $score += 15; // Starts in 2 weeks
         }
-        
+
         // Factor 2: Timeline tightness (35% weight)
         if ($totalDays <= 7) {
             $score += 35; // Very tight timeline
@@ -327,10 +384,10 @@ class TaskComputationsService
         } elseif ($totalDays <= 30) {
             $score += 15; // Moderate timeline
         }
-        
+
         // Factor 3: Subtask count (20% weight)
         $subtaskCount = $projectData['ai_subtask_count'] ?? 5;
-        
+
         if ($subtaskCount > 15) {
             $score += 20; // Many subtasks
         } elseif ($subtaskCount > 10) {
@@ -338,7 +395,7 @@ class TaskComputationsService
         } elseif ($subtaskCount > 5) {
             $score += 5; // Few subtasks
         }
-        
+
         // Convert score to priority (1=high, 2=normal, 3=low)
         if ($score >= 80) {
             return 1; // High priority
@@ -366,7 +423,7 @@ class TaskComputationsService
             'high' => 20,
             'very high' => 25
         ];
-        
+
         return $riskScores[$riskLevel] ?? 15; // Default to medium
     }
 
@@ -401,10 +458,10 @@ class TaskComputationsService
                 }
             }
         }
-        
+
         // Default distributions for larger task counts
         $ranges = [];
-        
+
         if ($totalTasks <= 5) {
             $ranges['high'] = 0.6;  // 60% high
             $ranges['normal'] = 0.3; // 30% normal
@@ -418,7 +475,7 @@ class TaskComputationsService
             $ranges['normal'] = 0.6; // 60% normal
             $ranges['low'] = 0.2;   // 20% low
         }
-        
+
         // Adjust based on main task priority
         if ($mainTaskPriority == 1) { // High priority main task
             $ranges['high'] = min(0.9, $ranges['high'] + 0.2);
@@ -427,13 +484,13 @@ class TaskComputationsService
             $ranges['high'] = max(0.1, $ranges['high'] - 0.2);
             $ranges['low'] = min(0.5, $ranges['low'] + 0.2);
         }
-        
+
         // Normalize to ensure sum = 1
         $total = array_sum($ranges);
         foreach ($ranges as &$range) {
             $range = $range / $total;
         }
-        
+
         return $ranges;
     }
 
@@ -441,28 +498,28 @@ class TaskComputationsService
     protected function calculateTaskPriorityScore($task, $position, $totalTasks)
     {
         $score = 0;
-        
+
         // Critical path gets highest weight (35%)
         if ($task['is_critical_path'] ?? false) {
             $score += 35;
         }
-        
+
         // Dependencies (25%)
         $dependencyCount = count($task['dependencies'] ?? []);
         $score += min($dependencyCount * 8, 25);
-        
+
         // Resource intensity (20%)
         $resourceIntensity = $task['resource_intensity'] ?? 2;
         $score += min($resourceIntensity * 4, 20); // 1*4=4 … 5*4=20
-        
+
         // Risk level (15%)
         $riskScore = $this->calculateRiskScore($task['risk_level'] ?? 'medium');
         $score += $riskScore;
-        
+
         // Position in order (5%)
         $positionFactor = (($totalTasks - $position) / $totalTasks) * 5;
         $score += $positionFactor;
-        
+
         // Cap at 100
         return min($score, 100);
     }
@@ -514,31 +571,31 @@ class TaskComputationsService
         foreach ($allEligibleUsers as $user) {
             $userExperience[$user->id] = Ticket::where('responsible_id', $user->id)->count();
         }
-        
+
         // Step 3: Sort tasks by priority and complexity
-        usort($tasks, function($a, $b) {
+        usort($tasks, function ($a, $b) {
             // Sort by priority (1=high, 2=normal, 3=low)
             $priorityA = $a['priority_id'] ?? 2;
             $priorityB = $b['priority_id'] ?? 2;
-            
+
             if ($priorityA != $priorityB) {
                 return $priorityA <=> $priorityB;
             }
-            
+
             // Then by resource intensity (higher first)
             $intensityA = $a['resource_intensity'] ?? 2;
             $intensityB = $b['resource_intensity'] ?? 2;
-            
+
             return $intensityB <=> $intensityA;
         });
-        
+
         // Step 4: Assign responsible for each task
         foreach ($tasks as &$task) {
-            $taskPriority   = $task['priority_id'] ?? 2;
+            $taskPriority = $task['priority_id'] ?? 2;
             $estimatedHours = floatval($task['estimated_hours'] ?? 1);
             $skillRequirements = $task['skill_requirements'] ?? [];
             $isCritical = $task['is_critical_path'] ?? false;
-            
+
             // If user was already chosen via Target Role dropdown, keep that exact user
             if (!empty($task['responsible_id'])) {
                 $userId = $task['responsible_id'];
@@ -578,16 +635,16 @@ class TaskComputationsService
                 $isCritical,
                 $userExperience
             );
-            
+
             $selectedUser = $assignmentResult['user'] ?? null;
-            
+
             // Save candidates (other eligible users)
-            $filteredCandidates = array_filter($assignmentResult['candidates'] ?? [], function($c) use ($selectedUser) {
+            $filteredCandidates = array_filter($assignmentResult['candidates'] ?? [], function ($c) use ($selectedUser) {
                 return !$selectedUser || $c['user']->id !== $selectedUser->id;
             });
             $selectedUserScore = $assignmentResult['user_score'] ?? 0;
             $task['selected_user_score'] = $selectedUserScore;
-            $task['candidates'] = array_map(function($c) use ($selectedUserScore) {
+            $task['candidates'] = array_map(function ($c) use ($selectedUserScore) {
                 $reason = $c['reason'] ?? ("Score: " . round($c['score'], 1) . ". Workload: " . round($c['workload'], 1) . "h.");
                 if ($c['score'] < $selectedUserScore) {
                     $diff = $selectedUserScore - $c['score'];
@@ -605,10 +662,10 @@ class TaskComputationsService
             if ($selectedUser) {
                 $task['responsible_id'] = $selectedUser->id;
                 $task['responsible_name'] = $selectedUser->name;
-                
+
                 // Update workload
                 $userWorkloads[$selectedUser->id] += $estimatedHours;
-                
+
                 // Also get department if available
                 if (isset($selectedUser->department)) {
                     $task['department'] = $selectedUser->department->name;
@@ -631,24 +688,26 @@ class TaskComputationsService
     {
         foreach ($tasks as &$task) {
             $uid = $task['responsible_id'] ?? null;
-            if (!$uid) continue;
+            if (!$uid)
+                continue;
 
             $extraHours = floatval($crossHoursPerUser[$uid] ?? 0);
-            if ($extraHours <= 0) continue;
+            if ($extraHours <= 0)
+                continue;
 
-            $newAfterLoad  = ($task['_after_load_raw'] ?? 0) + $extraHours;
-            $newRemaining  = max(0, $dailySessionLimit - (($task['_session_hours_after'] ?? 0) + $extraHours));
+            $newAfterLoad = ($task['_after_load_raw'] ?? 0) + $extraHours;
+            $newRemaining = max(0, $dailySessionLimit - (($task['_session_hours_after'] ?? 0) + $extraHours));
 
             $task['assignment_reason'] = sprintf(
                 '%s. Task priority: %s. Workload after assignment: %.1fh (capacity remaining today: %.1fh).',
-                $task['_reason_detail']  ?? '',
+                $task['_reason_detail'] ?? '',
                 $task['_priority_label'] ?? 'Normal',
                 $newAfterLoad,
                 $newRemaining
             );
 
             // Keep raw values up-to-date in case this is called again
-            $task['_after_load_raw']      = $newAfterLoad;
+            $task['_after_load_raw'] = $newAfterLoad;
             $task['_session_hours_after'] = ($task['_session_hours_after'] ?? 0) + $extraHours;
         }
         unset($task);
@@ -660,11 +719,11 @@ class TaskComputationsService
     public function calculateCurrentWorkloads($users)
     {
         $workloads = [];
-        
+
         foreach ($users as $user) {
             // Get active tickets (not completed/cancelled) across ALL projects
             $activeTickets = Ticket::where('responsible_id', $user->id)
-                ->whereNotIn('status_id', function($query) {
+                ->whereNotIn('status_id', function ($query) {
                     $query->select('id')
                         ->from('ticket_statuses')
                         ->whereIn('type', ['completed', 'cancelled']);
@@ -682,7 +741,7 @@ class TaskComputationsService
 
             $workloads[$user->id] = $totalHours + $inProgressHours;
         }
-        
+
         return $workloads;
     }
 
@@ -690,20 +749,20 @@ class TaskComputationsService
     protected function getPendingAiPreviewsWorkload($users)
     {
         $pendingWorkloads = [];
-        
+
         // Get all  previews for current session that haven't been converted to tickets
         $pendingPreviews = AiTaskPreview::where('session_id', session()->getId())
             ->where('user_id', auth()->id())
             ->get();
-        
+
         foreach ($pendingPreviews as $preview) {
             $tasks = $preview->generated_tasks ?? [];
-            
+
             foreach ($tasks as $task) {
                 if (isset($task['responsible_id']) && $task['responsible_id']) {
                     $userId = $task['responsible_id'];
                     $estimatedHours = floatval($task['estimated_hours'] ?? $task['estimation'] ?? 0);
-                    
+
                     if (isset($pendingWorkloads[$userId])) {
                         $pendingWorkloads[$userId] += $estimatedHours;
                     } else {
@@ -712,7 +771,7 @@ class TaskComputationsService
                 }
             }
         }
-        
+
         return $pendingWorkloads;
     }
 
@@ -737,39 +796,39 @@ class TaskComputationsService
                 $isCritical,
                 $experienceCount
             );
-            
+
             // Generate descriptive reason
             $reasons = [];
             $userMaxWorkload = $this->getUserMaxWorkload($user);
-            
+
             if ($currentWorkload >= $userMaxWorkload) {
                 $reasons[] = "At/Over capacity (" . round($currentWorkload, 1) . "h/" . $userMaxWorkload . "h)";
             } elseif ($currentWorkload > $userMaxWorkload * 0.7) {
                 $reasons[] = "High workload (" . round($currentWorkload, 1) . "h)";
             }
-            
+
             if ($priority == 1 && $experienceCount <= 5) {
                 $reasons[] = "Low experience for high priority task";
             }
-            
+
             if (!empty($skillRequirements)) {
                 $skillMatch = $this->calculateSkillMatch($user, $skillRequirements);
                 if ($skillMatch < 100) {
                     $reasons[] = "Skill match: " . round($skillMatch) . "%";
                 }
             }
-            
+
             if ($estimatedHours > 4 && $currentWorkload > 20) {
                 $reasons[] = "Busy user for long task";
             }
-            
+
             $reasonStr = implode(". ", $reasons);
             if (empty($reasonStr)) {
                 $reasonStr = "Good match. Workload: " . round($currentWorkload, 1) . "h";
             } else {
                 $reasonStr .= ". Score: " . round($score, 1);
             }
-            
+
             $allCandidates[] = [
                 'user' => $user,
                 'score' => $score,
@@ -786,9 +845,9 @@ class TaskComputationsService
                 ];
             }
         }
-        
+
         // Sort all candidates by score (descending)
-        usort($allCandidates, function($a, $b) {
+        usort($allCandidates, function ($a, $b) {
             return $b['score'] <=> $a['score'];
         });
 
@@ -807,7 +866,7 @@ class TaskComputationsService
             return [
                 'user' => $leastBusy,
                 'user_score' => $leastBusyScore,
-                'candidates' => array_map(function($c) use ($leastBusy) {
+                'candidates' => array_map(function ($c) use ($leastBusy) {
                     if ($leastBusy && $c['user']->id === $leastBusy->id) {
                         $c['reason'] = "Selected as least busy fallback. " . $c['reason'];
                     }
@@ -815,12 +874,12 @@ class TaskComputationsService
                 }, $allCandidates)
             ];
         }
-        
+
         // Sort by score (descending)
-        usort($eligibleUsers, function($a, $b) {
+        usort($eligibleUsers, function ($a, $b) {
             return $b['score'] <=> $a['score'];
         });
-        
+
         return [
             'user' => $eligibleUsers[0]['user'],
             'user_score' => $eligibleUsers[0]['score'] ?? 0,
@@ -834,16 +893,16 @@ class TaskComputationsService
         if ($users->isEmpty()) {
             return null;
         }
-        
+
         if ($workloads === null) {
             $workloads = $this->calculateCurrentWorkloads($users);
         }
-        
+
         $userExperience = [];
         foreach ($users as $user) {
             $userExperience[$user->id] = \App\Models\Ticket::where('responsible_id', $user->id)->count();
         }
-        
+
         return $this->selectResponsibleUser($users, $workloads, $priority, $estimatedHours, [], false, $userExperience);
     }
 
@@ -896,18 +955,18 @@ class TaskComputationsService
                 $score += 10;
             }
         }
-        
+
         // 3. Skill matching (20% weight)
         if (!empty($skillRequirements)) {
             $skillMatch = $this->calculateSkillMatch($user, $skillRequirements);
             $score += ($skillMatch * 0.2);
         }
-        
+
         // 4. Estimated hours consideration (10% weight)
         if ($estimatedHours > 4 && $workload > 20) {
             $score -= 10; // Don't assign long tasks to busy users
         }
-        
+
         return max(0, $score); // Ensure non-negative score
     }
 
@@ -916,19 +975,19 @@ class TaskComputationsService
     {
         // Default max workload is 40 hours
         $baseWorkload = 40;
-        
+
         // Adjust based on user role/experience
         if ($user->hasRole('senior') || $user->experience_years >= 3) {
             $baseWorkload = 50; // Senior users can handle more
         } elseif ($user->hasRole('junior') || $user->experience_years <= 1) {
             $baseWorkload = 30; // Junior users less workload
         }
-        
+
         // Adjust based on availability
         if (isset($user->availability) && $user->availability < 1.0) {
             $baseWorkload *= $user->availability;
         }
-        
+
         return $baseWorkload;
     }
 
@@ -938,24 +997,24 @@ class TaskComputationsService
         if (empty($requiredSkills)) {
             return 50; // Default 50% if no skills specified
         }
-        
+
         // This assumes you have a skills relationship on User model
         $userSkills = [];
-        
+
         if (method_exists($user, 'skills')) {
             $userSkills = $user->skills()->pluck('name')->toArray();
         } elseif (isset($user->skills)) {
             $userSkills = is_array($user->skills) ? $user->skills : json_decode($user->skills, true) ?? [];
         }
-        
+
         // Convert to lowercase for comparison
         $userSkills = array_map('strtolower', $userSkills);
         $requiredSkills = array_map('strtolower', $requiredSkills);
-        
+
         // Calculate match percentage
         $matchedSkills = array_intersect($requiredSkills, $userSkills);
         $matchPercentage = (count($matchedSkills) / count($requiredSkills)) * 100;
-        
+
         return $matchPercentage;
     }
 
@@ -964,7 +1023,7 @@ class TaskComputationsService
     {
         $leastBusyUser = null;
         $minWorkload = PHP_INT_MAX;
-        
+
         foreach ($users as $user) {
             $workload = $userWorkloads[$user->id] ?? 0;
             if ($workload < $minWorkload) {
@@ -972,7 +1031,7 @@ class TaskComputationsService
                 $leastBusyUser = $user;
             }
         }
-        
+
         return $leastBusyUser;
     }
 
@@ -983,7 +1042,7 @@ class TaskComputationsService
     {
         try {
             $projectStart = $project->start_date ?? now();
-            
+
             if ($algorithmMode === 'greedy') {
                 // Greedy: Start immediately with minimal offset
                 return Carbon::parse($projectStart)->addHours($index * 2);
@@ -997,7 +1056,7 @@ class TaskComputationsService
         }
     }
 
-     /**
+    /**
      * Calculate subtask due date with algorithm consideration
      */
     public function calculateSubtaskDueDate($project, $subtaskData, $index, $algorithmMode = 'divide_conquer')
@@ -1005,18 +1064,18 @@ class TaskComputationsService
         try {
             $estimation = floatval($subtaskData['estimated_hours'] ?? $subtaskData['estimation'] ?? 8);
             $projectStart = $project->start_date ?? now();
-            
+
             if ($algorithmMode === 'greedy') {
                 // Greedy: Aggressive due dates
                 $bufferMultiplier = $estimation <= 4 ? 1.2 : 1.5;
-                
+
                 return Carbon::parse($projectStart)
                     ->addHours($index * 4)
                     ->addHours($estimation * $bufferMultiplier);
             } else {
                 // Divide & Conquer: More conservative scheduling
                 $bufferMultiplier = $estimation <= 8 ? 1.5 : 2.0;
-                
+
                 return Carbon::parse($projectStart)
                     ->addDays($index)
                     ->addHours($estimation * $bufferMultiplier);
@@ -1032,7 +1091,7 @@ class TaskComputationsService
         // Use complexity score to determine priority
         $complexityData = $aiPreview->complexity_data ?? [];
         $complexityScore = $complexityData['score'] ?? 50;
-        
+
         if ($complexityScore >= 70) {
             return 1; // High priority
         } elseif ($complexityScore >= 40) {
@@ -1085,13 +1144,14 @@ class TaskComputationsService
     /**
      * Calculate priority for Greedy Algorithm
      * Greedy prioritizes tasks with highest immediate value/benefit
-    */
-    public function calculateGreedyPriority($aiPreview, $taskData){
+     */
+    public function calculateGreedyPriority($aiPreview, $taskData)
+    {
         try {
             // Get task UUID and subtasks
             $taskUuid = array_key_first($aiPreview);
             $subtasksArray = $aiPreview[$taskUuid] ?? [];
-            
+
             if (empty($subtasksArray)) {
                 return 2; // Default medium priority
             }
@@ -1108,25 +1168,25 @@ class TaskComputationsService
             // Factor 1: Average duration of subtasks (shorter = higher priority in greedy)
             $totalHours = 0;
             $shortTaskCount = 0;
-            
+
             foreach ($subtasksArray as $subtask) {
                 $hours = floatval($subtask['estimated_hours'] ?? $subtask['estimation'] ?? 0);
                 $totalHours += $hours;
-                
+
                 if ($hours <= 4) { // Tasks under 4 hours are "quick wins"
                     $shortTaskCount++;
                 }
             }
-            
+
             $avgHours = count($subtasksArray) > 0 ? $totalHours / count($subtasksArray) : 0;
-            
+
             // Shorter average = higher priority (1-10 scale, inverted)
             $durationFactor = $avgHours > 0 ? min(10, max(1, 20 / $avgHours)) : 5;
             $factors['duration'] = $durationFactor;
-            
+
             // Factor 2: Percentage of quick wins
-            $quickWinFactor = count($subtasksArray) > 0 
-                ? ($shortTaskCount / count($subtasksArray)) * 10 
+            $quickWinFactor = count($subtasksArray) > 0
+                ? ($shortTaskCount / count($subtasksArray)) * 10
                 : 5;
             $factors['quick_wins'] = $quickWinFactor;
 
@@ -1137,9 +1197,9 @@ class TaskComputationsService
                     $criticalCount++;
                 }
             }
-            
-            $criticalFactor = count($subtasksArray) > 0 
-                ? ($criticalCount / count($subtasksArray)) * 10 
+
+            $criticalFactor = count($subtasksArray) > 0
+                ? ($criticalCount / count($subtasksArray)) * 10
                 : 5;
             $factors['critical_path'] = $criticalFactor;
 
@@ -1150,9 +1210,9 @@ class TaskComputationsService
                     $parallelCount++;
                 }
             }
-            
-            $parallelFactor = count($subtasksArray) > 0 
-                ? ($parallelCount / count($subtasksArray)) * 10 
+
+            $parallelFactor = count($subtasksArray) > 0
+                ? ($parallelCount / count($subtasksArray)) * 10
                 : 5;
             $factors['parallelizable'] = $parallelFactor;
 
@@ -1161,11 +1221,11 @@ class TaskComputationsService
             foreach ($subtasksArray as $subtask) {
                 $totalResourceIntensity += $subtask['resource_intensity'] ?? 2;
             }
-            
-            $avgResourceIntensity = count($subtasksArray) > 0 
-                ? $totalResourceIntensity / count($subtasksArray) 
+
+            $avgResourceIntensity = count($subtasksArray) > 0
+                ? $totalResourceIntensity / count($subtasksArray)
                 : 2;
-            
+
             // Lower resource intensity = higher priority (1-10 scale, inverted)
             $resourceFactor = max(1, min(10, 6 - ($avgResourceIntensity - 1)));
             $factors['resource_efficiency'] = $resourceFactor;
@@ -1178,14 +1238,14 @@ class TaskComputationsService
                 'parallelizable' => 0.20,    // Parallel tasks are efficient
                 'resource_efficiency' => 0.15
             ];
-            
+
             foreach ($factors as $factor => $value) {
                 $priorityScore += $value * ($weights[$factor] ?? 0.1);
             }
 
             // Convert to priority ID (1-5 scale, where 1 is highest)
             $priorityId = $this->convertGreedyScoreToPriorityId($priorityScore);
-            
+
             Log::debug('Greedy priority calculation', [
                 'priority_score' => $priorityScore,
                 'priority_id' => $priorityId,
@@ -1215,19 +1275,19 @@ class TaskComputationsService
             }
 
             $createdDependencies = [];
-            
+
             // Greedy approach: Only create essential dependencies
             // 1. Identify critical path tasks
             // 2. Create minimal sequential dependencies for critical path
             // 3. Allow non-critical tasks to run in parallel
-            
+
             $criticalSubtasks = [];
             $nonCriticalSubtasks = [];
-            
+
             // Separate critical and non-critical tasks
             foreach ($subtasks as $index => $subtask) {
                 $subtaskData = $subtasksArray[$index] ?? [];
-                
+
                 if (($subtaskData['is_critical_path'] ?? false) === true) {
                     $criticalSubtasks[] = [
                         'subtask' => $subtask,
@@ -1242,20 +1302,20 @@ class TaskComputationsService
                     ];
                 }
             }
-            
+
             // Create sequential dependencies for critical path (if any)
             if (count($criticalSubtasks) > 1) {
                 for ($i = 0; $i < count($criticalSubtasks) - 1; $i++) {
                     $current = $criticalSubtasks[$i]['subtask'];
                     $next = $criticalSubtasks[$i + 1]['subtask'];
-                    
+
                     // Check if dependency already exists in subtask data
                     $nextData = $criticalSubtasks[$i + 1]['data'];
                     $hasExistingDependency = in_array(
                         $criticalSubtasks[$i]['index'],
                         $nextData['dependencies'] ?? []
                     );
-                    
+
                     if (!$hasExistingDependency) {
                         // Create dependency in ticket_relations table
                         \App\Models\TicketRelation::create([
@@ -1271,7 +1331,7 @@ class TaskComputationsService
                                 'created_by_ai' => true
                             ])
                         ]);
-                        
+
                         $createdDependencies[] = [
                             'from' => $current->id,
                             'to' => $next->id,
@@ -1280,21 +1340,21 @@ class TaskComputationsService
                     }
                 }
             }
-            
+
             // For non-critical tasks, only create dependencies if explicitly defined
             foreach ($nonCriticalSubtasks as $nonCritical) {
                 $dependencies = $nonCritical['data']['dependencies'] ?? [];
-                
+
                 foreach ($dependencies as $depIndex) {
                     if (isset($subtasks[$depIndex])) {
                         $dependsOn = $subtasks[$depIndex];
-                        
+
                         // Check if dependency already exists in ticket_relations
                         $exists = \App\Models\TicketRelation::where('ticket_id', $nonCritical['subtask']->id)
                             ->where('relation_id', $dependsOn->id)
                             ->where('type', 'dependency')
                             ->exists();
-                        
+
                         if (!$exists) {
                             \App\Models\TicketRelation::create([
                                 'ticket_id' => $nonCritical['subtask']->id,
@@ -1310,7 +1370,7 @@ class TaskComputationsService
                                     'explicit_dependency' => true
                                 ])
                             ]);
-                            
+
                             $createdDependencies[] = [
                                 'from' => $dependsOn->id,
                                 'to' => $nonCritical['subtask']->id,
@@ -1320,7 +1380,7 @@ class TaskComputationsService
                     }
                 }
             }
-            
+
             Log::info('Created greedy dependencies', [
                 'total_subtasks' => count($subtasks),
                 'critical_tasks' => count($criticalSubtasks),
@@ -1336,7 +1396,7 @@ class TaskComputationsService
         }
     }
 
-       /**
+    /**
      * Apply greedy algorithm prioritization to tasks
      * Greedy prioritizes: quick wins, high value/effort ratio, minimal dependencies
      */
@@ -1348,7 +1408,7 @@ class TaskComputationsService
             }
 
             $prioritizedTasks = [];
-            
+
             // Calculate greedy scores for each task
             foreach ($subtasks as $task) {
                 $task['greedy_score'] = $this->calculateGreedyTaskScore($task);
@@ -1356,7 +1416,7 @@ class TaskComputationsService
             }
 
             // Sort by greedy score (descending - higher score = executed first)
-            usort($prioritizedTasks, function($a, $b) {
+            usort($prioritizedTasks, function ($a, $b) {
                 return ($b['greedy_score'] ?? 0) <=> ($a['greedy_score'] ?? 0);
             });
 
@@ -1364,18 +1424,18 @@ class TaskComputationsService
             // Using absolute thresholds causes all quick-win tasks to be "High"
             // since Greedy naturally scores them high for scheduling purposes.
             $total = count($prioritizedTasks);
-            $highCutoff   = (int) ceil($total * 0.30); // top 30% → High
+            $highCutoff = (int) ceil($total * 0.30); // top 30% → High
             $normalCutoff = (int) ceil($total * 0.70); // next 40% → Normal, rest → Low
 
             foreach ($prioritizedTasks as $index => &$task) {
                 if ($index < $highCutoff) {
-                    $task['priority_id']    = 1;
+                    $task['priority_id'] = 1;
                     $task['priority_range'] = 'high';
                 } elseif ($index < $normalCutoff) {
-                    $task['priority_id']    = 2;
+                    $task['priority_id'] = 2;
                     $task['priority_range'] = 'normal';
                 } else {
-                    $task['priority_id']    = 3;
+                    $task['priority_id'] = 3;
                     $task['priority_range'] = 'low';
                 }
             }
@@ -1384,11 +1444,11 @@ class TaskComputationsService
             // Reassign order based on greedy priority
             foreach ($prioritizedTasks as $index => &$task) {
                 $task['order'] = $index + 1;
-                
+
                 // Adjust dependencies based on new order
                 if (!empty($task['dependencies'])) {
                     $task['dependencies'] = $this->adjustDependenciesForGreedy(
-                        $task['dependencies'], 
+                        $task['dependencies'],
                         $prioritizedTasks
                     );
                 }
@@ -1416,12 +1476,12 @@ class TaskComputationsService
     {
         $score = 0;
         $maxScore = 100;
-        
+
         // 1. QUICK WIN FACTOR (0-30 points)
         // Shorter tasks get higher score
         $estimatedHours = floatval($task['estimated_hours'] ?? 8);
         $quickWinFactor = 0;
-        
+
         if ($estimatedHours <= 1) {
             $quickWinFactor = 30; // Very quick
         } elseif ($estimatedHours <= 2) {
@@ -1433,47 +1493,47 @@ class TaskComputationsService
         } else {
             $quickWinFactor = 5; // Long tasks get minimal points
         }
-        
+
         $score += $quickWinFactor;
-        
+
         // 2. DEPENDENCY FACTOR (0-25 points)
         // Fewer dependencies = better for greedy
         $dependencyCount = count($task['dependencies'] ?? []);
         $dependencyFactor = max(0, 25 - ($dependencyCount * 5));
         $score += $dependencyFactor;
-        
+
         // 3. PARALLELIZATION FACTOR (0-20 points)
         $parallelizable = $task['parallelizable'] ?? true;
         $parallelFactor = $parallelizable ? 20 : 5;
         $score += $parallelFactor;
-        
+
         // 4. RESOURCE INTENSITY FACTOR (0-15 points)
         // Lower resource intensity = better for greedy
         $resourceIntensity = $task['resource_intensity'] ?? 2;
         $resourceFactor = max(0, 15 - ($resourceIntensity * 3));
         $score += $resourceFactor;
-        
+
         // 5. RISK FACTOR (0-10 points)
         $riskLevel = strtolower($task['risk_level'] ?? 'medium');
-        $riskFactor = match($riskLevel) {
+        $riskFactor = match ($riskLevel) {
             'low' => 10,
             'medium' => 5,
             'high' => 0,
             default => 5
         };
         $score += $riskFactor;
-        
+
         // 6. Add any greedy-specific scores if available
         if (isset($task['quick_win_score'])) {
             $score += ($task['quick_win_score'] * 0.5); // Convert 1-10 to 0-5
         }
-        
+
         if (isset($task['effort_to_value_ratio'])) {
             $ratio = floatval($task['effort_to_value_ratio']);
             // Lower ratio = less effort per unit of value = better for greedy
             $score += min(10, max(0, 10 - $ratio));
         }
-        
+
         // Ensure score is within bounds
         return min($maxScore, max(0, $score));
     }
@@ -1487,32 +1547,32 @@ class TaskComputationsService
         if (empty($dependencies)) {
             return [];
         }
-        
+
         $adjustedDeps = [];
-        
+
         foreach ($dependencies as $depTitle) {
             // Find the dependent task
             $depTask = $this->findTaskByTitle($depTitle, $allTasks);
-            
+
             if ($depTask) {
                 // Check if this dependency is really necessary for greedy
                 // Greedy prefers to remove non-critical dependencies
                 $isCritical = $depTask['is_critical_path'] ?? false;
                 $depHours = floatval($depTask['estimated_hours'] ?? 0);
-                
+
                 // Keep dependency only if:
                 // 1. It's on critical path, OR
                 // 2. It's very short (quick win), OR  
                 // 3. It has high greedy score
                 $depScore = $depTask['greedy_score'] ?? 0;
-                
+
                 if ($isCritical || $depHours <= 2 || $depScore >= 70) {
                     $adjustedDeps[] = $depTitle;
                 }
                 // Otherwise, greedy would skip this dependency
             }
         }
-        
+
         return $adjustedDeps;
     }
 
@@ -1536,9 +1596,11 @@ class TaskComputationsService
     {
         // 3-level priority system:
         // 1 = High, 2 = Medium, 3 = Low
-        
-        if ($score >= 70) return 1;     // High priority
-        if ($score >= 40) return 2;     // Medium priority
+
+        if ($score >= 70)
+            return 1;     // High priority
+        if ($score >= 40)
+            return 2;     // Medium priority
         return 3;                       // Low priority
     }
 
@@ -1547,8 +1609,10 @@ class TaskComputationsService
      */
     protected function getPriorityRangeFromScore($score)
     {
-        if ($score >= 70) return 'high';
-        if ($score >= 40) return 'normal';
+        if ($score >= 70)
+            return 'high';
+        if ($score >= 40)
+            return 'normal';
         return 'low';
     }
 
@@ -1561,10 +1625,10 @@ class TaskComputationsService
         $quickTasks = [];    // <= 2 hours
         $mediumTasks = [];   // 2-4 hours  
         $longTasks = [];     // > 4 hours
-        
+
         foreach ($tasks as $task) {
             $hours = floatval($task['estimated_hours'] ?? 0);
-            
+
             if ($hours <= 2) {
                 $quickTasks[] = $task;
             } elseif ($hours <= 4) {
@@ -1573,25 +1637,25 @@ class TaskComputationsService
                 $longTasks[] = $task;
             }
         }
-        
+
         // Greedy: Assign quick tasks first (quick wins)
         $assignedTasks = [];
-        
+
         // Process quick tasks first
         foreach ($quickTasks as $task) {
             $assignedTasks[] = $this->assignGreedyTask($task, $assignedTasks);
         }
-        
+
         // Then medium tasks
         foreach ($mediumTasks as $task) {
             $assignedTasks[] = $this->assignGreedyTask($task, $assignedTasks);
         }
-        
+
         // Finally long tasks
         foreach ($longTasks as $task) {
             $assignedTasks[] = $this->assignGreedyTask($task, $assignedTasks);
         }
-        
+
         return $assignedTasks;
     }
 
@@ -1603,7 +1667,7 @@ class TaskComputationsService
         // For greedy, we want to:
         // 1. Assign to someone who can do it quickly
         // 2. Balance workload but prioritize speed
-        
+
         // If user was already chosen via Target Role dropdown, keep that exact user
         if (!empty($task['responsible_id'])) {
             $roleName = $task['target_role_name'] ?? 'selected role';
@@ -1615,7 +1679,7 @@ class TaskComputationsService
         $allTeamMembers = User::whereHas('roles', function ($q) {
             $q->whereNotIn('role_type', ['CORE']);
         })->get();
-        
+
         // Filter by target role if specified
         $targetRoleName = $task['target_role_name'] ?? null;
         if ($targetRoleName) {
@@ -1630,28 +1694,28 @@ class TaskComputationsService
         } else {
             $teamMembers = $allTeamMembers;
         }
-        
+
         if ($teamMembers->isEmpty()) {
             $task['responsible_id'] = null;
             $task['responsible_name'] = 'Unassigned';
             $task['assignment_reason'] = 'No eligible users available';
             return $task;
         }
-        
+
         // Find best match using greedy heuristic:
         // Choose team member with least current workload who has required skills
         $bestMember = null;
         $bestScore = -1;
-        
+
         foreach ($teamMembers as $member) {
             $score = $this->calculateMemberGreedyScore($member, $task, $alreadyAssignedTasks);
-            
+
             if ($score > $bestScore) {
                 $bestScore = $score;
                 $bestMember = $member;
             }
         }
-        
+
         if ($bestMember) {
             $task['responsible_id'] = $bestMember['id'];
             $task['responsible_name'] = $bestMember['name'];
@@ -1659,7 +1723,7 @@ class TaskComputationsService
             $task['responsible_id'] = null;
             $task['responsible_name'] = 'Unassigned';
         }
-        
+
         return $task;
     }
 
@@ -1669,25 +1733,25 @@ class TaskComputationsService
     protected function calculateMemberGreedyScore($member, $task, $assignedTasks)
     {
         $score = 0;
-        
+
         // 1. Skill match (most important)
         $requiredSkills = $task['skill_requirements'] ?? [];
         $memberSkills = $member['skills'] ?? [];
-        
+
         $skillMatch = count(array_intersect($requiredSkills, $memberSkills));
         $score += $skillMatch * 20;
-        
+
         // 2. Current workload (greedy prefers less busy people for quick tasks)
         $currentWorkload = $this->calculateMemberWorkload($member['id'], $assignedTasks);
         $workloadScore = max(0, 50 - ($currentWorkload * 5));
         $score += $workloadScore;
-        
+
         // 3. Task length preference (quick tasks to faster people)
         $taskHours = floatval($task['estimated_hours'] ?? 0);
         if ($taskHours <= 2 && $member['is_quick'] ?? false) {
             $score += 30; // Bonus for quick workers on quick tasks
         }
-        
+
         return $score;
     }
 
@@ -1697,13 +1761,13 @@ class TaskComputationsService
     protected function calculateMemberWorkload($memberId, $assignedTasks)
     {
         $totalHours = 0;
-        
+
         foreach ($assignedTasks as $task) {
             if (($task['responsible_id'] ?? null) == $memberId) {
                 $totalHours += floatval($task['estimated_hours'] ?? 0);
             }
         }
-        
+
         return $totalHours;
     }
 
@@ -1795,7 +1859,7 @@ class TaskComputationsService
     {
         return match ($level) {
             1, 2 => 'low',
-            3    => 'medium',
+            3 => 'medium',
             4, 5 => 'high',
             default => 'medium',
         };

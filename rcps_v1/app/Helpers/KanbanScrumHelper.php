@@ -158,11 +158,11 @@ trait KanbanScrumHelper
             ]);
     }
 
-   public function recordUpdated(int $record, int $newIndex, int $newStatus): void
+    public function recordUpdated(int $record, int $newIndex, int $newStatus): void
     {
         try {
             DB::beginTransaction();
-            
+
             $ticket = Ticket::with(['status', 'relations.relation', 'timeLogs'])->find($record);
             $status = TicketStatus::find($newStatus);
             $oldStatus = $ticket->status;
@@ -175,7 +175,7 @@ trait KanbanScrumHelper
             // 1. Validate dependencies FIRST (before any changes)
             if ($ticket->dependency_mode == 2) {
                 $validationErrors = $this->validateDependencies($ticket, $newStatus);
-        
+
                 if (!empty($validationErrors)) {
                     DB::rollBack();
                     Filament::notify('danger', implode('<br>', $validationErrors));
@@ -190,8 +190,7 @@ trait KanbanScrumHelper
             // 3. Handle time tracking based on status changes
             if ($this->shouldStartTimeLog($status, $oldStatus)) {
                 $this->startTimeLog($ticket);
-            }
-            elseif ($this->shouldStopTimeLog($status, $oldStatus)) {
+            } elseif ($this->shouldStopTimeLog($status, $oldStatus)) {
                 $this->stopTimeLog($ticket);
             }
 
@@ -211,7 +210,7 @@ trait KanbanScrumHelper
 
         } catch (\Throwable $e) {
             DB::rollBack();
-        
+
             Log::error("Ticket update failed: " . $e->getMessage());
             Filament::notify('danger', __('Update failed: ') . $e->getMessage());
         }
@@ -236,10 +235,10 @@ trait KanbanScrumHelper
     {
         DB::transaction(function () use ($ticket) {
             $existingLog = TimeLog::where('ticket_id', $ticket->id)
-                            ->whereNull('end_time')
-                            ->lockForUpdate()
-                            ->exists();
-                            
+                ->whereNull('end_time')
+                ->lockForUpdate()
+                ->exists();
+
             if (!$existingLog) {
                 TimeLog::create([
                     'ticket_id' => $ticket->id,
@@ -256,9 +255,9 @@ trait KanbanScrumHelper
         try {
 
             $log = TimeLog::where('ticket_id', $ticket->id)
-            ->whereNull('end_time')
-            ->latest()
-            ->first();
+                ->whereNull('end_time')
+                ->latest()
+                ->first();
 
             if ($log) {
 
@@ -267,17 +266,17 @@ trait KanbanScrumHelper
                 $endTime = now();
                 $minutesWorked = $startTime->diffInMinutes($endTime);
                 $hours = max(0.1, round($minutesWorked / 60, 2));
-    
+
                 $log->update([
                     'end_time' => $endTime->format('Y-m-d H:i:s'),
                     'hours' => $hours,
                     'description' => 'Work completed'
                 ]);
- 
+
             }
 
             return true;
-            
+
         } catch (\Exception $e) {
             Log::error("Failed to stop time log: " . $e->getMessage());
             Filament::notify('danger', __('Update failed: ') . $e->getMessage());
@@ -289,9 +288,9 @@ trait KanbanScrumHelper
     {
         // Re-query to get fresh time log data
         $actualHours = $ticket->timeLogs->sum('hours');
-        
+
         $ticket->execution_time = round($actualHours, 2);
-        
+
         // FIXED: Correct scheduling accuracy calculation
         if ($ticket->estimation > 0) {
             $deviation = abs($ticket->estimation - $actualHours);
@@ -301,18 +300,18 @@ trait KanbanScrumHelper
         } else {
             $ticket->scheduling_accuracy = null;
         }
-        
+
         // FIXED: Task-specific resource utilization
         if ($ticket->responsible_id) {
             $ticket->resource_utilization = $this->calculateTaskResourceUtilization(
-                $ticket->responsible_id, 
+                $ticket->responsible_id,
                 $actualHours,
                 $ticket->estimation
             );
         } else {
             $ticket->resource_utilization = null;
         }
-        
+
         // ADD: Set metrics date
         $ticket->metrics_date = now();
     }
@@ -322,13 +321,13 @@ trait KanbanScrumHelper
         if ($estimatedHours <= 0) {
             return 0;
         }
-        
+
         // Task-specific utilization: how much of estimated time was actually used
         // 100% = used exactly estimated time
         // >100% = took longer than estimated (over-utilized)
         // <100% = finished faster than estimated (under-utilized)
         $utilization = ($actualHours / $estimatedHours) * 100;
-        
+
         return min(200, round($utilization, 2)); // Cap at 200% to avoid extreme values
     }
 
@@ -337,11 +336,11 @@ trait KanbanScrumHelper
     {
         $user = User::find($userId);
         $weeklyCapacity = $user->weekly_hours_capacity ?? 40;
-        
+
         $weeklyHours = TimeLog::where('user_id', $userId)
             ->whereBetween('start_time', [now()->startOfWeek(), now()->endOfWeek()])
             ->sum('hours');
-        
+
         return min(100, round(($weeklyHours / $weeklyCapacity) * 100, 2));
     }
 
@@ -350,21 +349,28 @@ trait KanbanScrumHelper
         $errors = [];
         $newStatus = TicketStatus::findOrFail($newStatusId);
         $currentStatus = $ticket->status;
-    
-        // 1. Validate forward movement (dependencies must be complete)
-        if (in_array($newStatus->type, ['active', 'pending', 'completed'])) {
-            foreach ($ticket->relations as $relation) {
-                // ADD: Null safety checks
-                if (!$relation->relation || !$relation->relation->status) {
-                    continue;
-                }
+        
+        $statusLevels = [
+            'pending' => 0,
+            'active' => 1,
+            'completed' => 2,
+        ];
+        
+        $newLevel = $statusLevels[$newStatus->type] ?? 0;
+        $currentLevel = $statusLevels[$currentStatus->type] ?? 0;
+
+        // 1. Validate forward movement (dependencies must be at least at the same level)
+        foreach ($ticket->relations as $relation) {
+            if (!$relation->relation || !$relation->relation->status) {
+                continue;
+            }
+            
+            if ($relation->type === 'blocks' || $relation->type === 'depends_on') {
+                $depStatus = $relation->relation->status;
+                $depLevel = $statusLevels[$depStatus->type] ?? 0;
                 
-                if (
-                    ($relation->type === 'blocks' || $relation->type === 'depends_on') && 
-                    $relation->relation->status->type !== 'completed'
-                ) {
-                    $relationType = $relation->type === 'blocks' ? 'Blocked by' : 'Depends on';
-                    $errors[] = __("Cannot move to {$newStatus->name}: {$relationType} ticket #{$relation->relation->code} must be completed first");
+                if ($newLevel > $depLevel) {
+                    $errors[] = __("Cannot move to {$newStatus->name}: Dependent ticket #{$relation->relation->code} is only in {$depStatus->name}");
                 }
             }
         }
@@ -372,37 +378,49 @@ trait KanbanScrumHelper
         // 2. Validate order changes
         if ($ticket->isDirty('order')) {
             foreach ($ticket->relations as $relation) {
-                // ADD: Null safety check
-                if (!$relation->relation) continue;
-                
+                if (!$relation->relation)
+                    continue;
+
                 if ($relation->type === 'depends_on' && $ticket->order < $relation->relation->order) {
                     $errors[] = __("Cannot reorder: Must come after ticket #{$relation->relation->code}");
                 }
             }
         }
 
-        // 3. Handle reverting dependents when moving back to active
-        if ($currentStatus->type === 'completed' && $newStatus->type === 'active') {
+        // 3. Handle cascading updates for dependents when moving back
+        // If current ticket is moving to a lower level, dependents cannot exceed it.
+        if ($newLevel < $currentLevel) {
             $dependents = $ticket->dependents()
                 ->with('ticket.status')
-                ->get()
-                ->filter(function($relation) {
-                    return $relation->ticket && 
-                        $relation->ticket->status && 
-                        $relation->ticket->status->type !== 'pending';
-                });
+                ->get();
 
             foreach ($dependents as $relation) {
-                $pendingStatus = TicketStatus::where('type', 'pending')->first();
-                if ($pendingStatus && $relation->ticket) {
-                    $relation->ticket->status_id = $pendingStatus->id;
-                    $relation->ticket->save();
-                    $errors[] = __("Reverted dependent Ticket #{$relation->ticket->code} to {$pendingStatus->name}");
+                if (!$relation->ticket || !$relation->ticket->status) continue;
+                
+                $dependentTicket = $relation->ticket;
+                $dependentLevel = $statusLevels[$dependentTicket->status->type] ?? 0;
+                
+                if ($dependentLevel > $newLevel) {
+                    $targetStatus = TicketStatus::where('type', $newStatus->type)
+                        ->where(function($q) use ($dependentTicket) {
+                            $q->where('project_id', $dependentTicket->project_id)
+                              ->orWhereNull('project_id');
+                        })
+                        ->orderBy('project_id', 'desc')
+                        ->first();
+                        
+                    if ($targetStatus) {
+                        $dependentTicket->status_id = $targetStatus->id;
+                        $dependentTicket->save();
+                        
+                        \Filament\Notifications\Notification::make()
+                            ->title('Status Cascaded')
+                            ->body(__("Moved dependent Ticket #{$dependentTicket->code} to {$targetStatus->name}"))
+                            ->warning()
+                            ->send();
+                    }
                 }
             }
-
-            $ticket->status_id = $newStatus->id;
-            $ticket->save(); 
         }
 
         return $errors;

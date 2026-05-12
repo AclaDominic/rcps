@@ -36,14 +36,16 @@ class Kanban extends Page implements HasForms
             return $this->redirect(route('filament.pages.scrum/{project}', ['project' => $project]));
         }
 
-        $userId = auth()->user()->id;
+        $user = auth()->user();
+        $userId = $user->id;
 
         $isOwner = $this->project->owner_id === $userId;
         $isMember = $this->project->users->contains('id', $userId);
         $isTicketOwner = $this->project->tickets->contains('owner_id', $userId);
         $isTicketResponsible = $this->project->tickets->contains('responsible_id', $userId);
+        $isCore = $user->hasRoleType(['CORE']);
 
-        if (!($isOwner || $isMember || $isTicketOwner || $isTicketResponsible)) {
+        if (!($isOwner || $isMember || $isTicketOwner || $isTicketResponsible || $isCore)) {
             abort(403);
         }
 

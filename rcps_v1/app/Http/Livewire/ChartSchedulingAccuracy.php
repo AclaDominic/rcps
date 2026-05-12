@@ -43,7 +43,13 @@ class ChartSchedulingAccuracy extends Component
 
         // Project filter
         if ($this->projectId) {
-            $query->where('project_id', $this->projectId);
+            $project = Project::find($this->projectId);
+            if ($project && $project->comparison_id) {
+                $pairedProjectIds = Project::where('comparison_id', $project->comparison_id)->pluck('id');
+                $query->whereIn('project_id', $pairedProjectIds);
+            } else {
+                $query->where('project_id', $this->projectId);
+            }
         } elseif (!$isPrivileged) {
             $allowedProjectIds = Project::where(function ($query) {
                 $query->where('owner_id', auth()->id())
@@ -64,8 +70,8 @@ class ChartSchedulingAccuracy extends Component
             $query->whereMonth('metrics_date', $this->selectedMonth)
                   ->whereYear('metrics_date', $this->selectedYear);
         } elseif ($this->selectedWeek && $this->selectedYear) {
-            $query->whereRaw('YEAR(metrics_date) = ?', [$this->selectedYear])
-                  ->whereRaw('WEEK(metrics_date, 1) = ?', [$this->selectedWeek]);
+            $query->whereYear('metrics_date', $this->selectedYear)
+                  ->whereWeek('metrics_date', $this->selectedWeek);
         } elseif ($this->selectedYear) {
             $query->whereYear('metrics_date', $this->selectedYear);
         }

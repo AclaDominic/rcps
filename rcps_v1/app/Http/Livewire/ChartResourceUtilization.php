@@ -38,15 +38,26 @@ class ChartResourceUtilization extends Component
         $query = Ticket::query();
 
         if ($this->projectId) {
-            $query->where('project_id', $this->projectId);
+            $project = Project::find($this->projectId);
+            if ($project && $project->comparison_id) {
+                $pairedProjectIds = Project::where('comparison_id', $project->comparison_id)->pluck('id');
+                $query->whereIn('project_id', $pairedProjectIds);
+            } else {
+                $query->where('project_id', $this->projectId);
+            }
         }
 
         // Apply filter type
         if ($this->filterType === 'date_range' && $this->dateFrom && $this->dateTo) {
             $query->whereBetween(DB::raw('DATE(metrics_date)'), [$this->dateFrom, $this->dateTo]);
         } elseif ($this->filterType === 'weekly' && $this->selectedMonth && $this->selectedWeek) {
-            $query->whereMonth('metrics_date', $this->selectedMonth)
-                ->whereRaw('WEEK(metrics_date, 1) - WEEK(DATE_SUB(metrics_date, INTERVAL DAYOFMONTH(metrics_date)-1 DAY), 1) + 1 = ?', [$this->selectedWeek]);
+            $query->whereMonth('metrics_date', $this->selectedMonth);
+            
+            if (DB::getDriverName() === 'pgsql') {
+                $query->whereRaw("EXTRACT(WEEK FROM metrics_date) - EXTRACT(WEEK FROM date_trunc('month', metrics_date)) + 1 = ?", [$this->selectedWeek]);
+            } else {
+                $query->whereRaw('WEEK(metrics_date, 1) - WEEK(DATE_SUB(metrics_date, INTERVAL DAYOFMONTH(metrics_date)-1 DAY), 1) + 1 = ?', [$this->selectedWeek]);
+            }
         } elseif ($this->filterType === 'monthly' && $this->selectedYear) {
             $query->whereYear('metrics_date', $this->selectedYear);
         } elseif ($this->filterType === 'yearly' && $this->selectedYear) {
@@ -64,8 +75,8 @@ class ChartResourceUtilization extends Component
                 'dependency_mode',
                 DB::raw('AVG(resource_utilization) as avg_util')
             )
-            ->groupBy('date', 'dependency_mode')
-            ->orderBy('date')
+            ->groupBy(DB::raw('DATE(metrics_date)'), 'dependency_mode')
+            ->orderBy(DB::raw('DATE(metrics_date)'))
             ->get();
 
         $dates = $metrics->pluck('date')->unique()->values()->all();

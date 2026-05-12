@@ -69,15 +69,17 @@ class MonthlyReport extends BarChartWidget
 
     protected function filter(User $user, array $params)
     {
+        $monthExpr = DB::getDriverName() === 'pgsql' 
+            ? "TO_CHAR(created_at, 'MM')" 
+            : "DATE_FORMAT(created_at, '%m')";
+
         return TicketHour::select([
-            DB::raw("DATE_FORMAT(created_at,'%m') as month"),
+            DB::raw("$monthExpr as month"),
             DB::raw('SUM(value) as value'),
         ])
-            ->whereRaw(
-                DB::raw("YEAR(created_at)=" . (is_null($params['year']) ? Carbon::now()->format('Y') : $params['year']))
-            )
+            ->whereYear('created_at', is_null($params['year']) ? Carbon::now()->format('Y') : $params['year'])
             ->where('user_id', $user->id)
-            ->groupBy(DB::raw("DATE_FORMAT(created_at,'%m')"))
+            ->groupBy(DB::raw($monthExpr))
             ->get();
     }
 

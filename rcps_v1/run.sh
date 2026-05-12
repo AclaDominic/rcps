@@ -8,17 +8,16 @@ until php artisan tinker --execute="DB::connection()->getPdo();" > /dev/null 2>&
 done
 echo "Database connected!"
 
-# Check if database has tables
+# Run migrations (safe, applies new ones without wiping)
+echo "Running migrations..."
+php artisan migrate:fresh --force
+
+# Check if database has data
 echo "Checking if database has data..."
-TABLE_COUNT=$(php artisan tinker --execute="echo count(DB::select('SHOW TABLES'));" 2>/dev/null | tail -n 1 | sed 's/[^0-9]*//g')
-
-echo "Found $TABLE_COUNT tables."
-
-if [ -n "$TABLE_COUNT" ] && [ "$TABLE_COUNT" -gt 0 ]; then
-    echo "Database already has tables. Skipping migration and seeding."
+if php artisan tinker --execute="echo \App\Models\User::exists() ? 'true' : 'false';" | grep -q "true"; then
+    echo "Database has data. Skipping seeding."
 else
-    echo "Database is empty or count failed. Running migrations and seeding..."
-    php artisan migrate --force
+    echo "Database is empty. Running seeding..."
     php artisan db:seed --force
 fi
 

@@ -55,7 +55,13 @@ class ChartAccuracyPerTicket extends Component
         $query = Ticket::query();
         
         if ($this->projectId) {
-            $query->where('project_id', $this->projectId);
+            $project = Project::find($this->projectId);
+            if ($project && $project->comparison_id) {
+                $pairedProjectIds = Project::where('comparison_id', $project->comparison_id)->pluck('id');
+                $query->whereIn('project_id', $pairedProjectIds);
+            } else {
+                $query->where('project_id', $this->projectId);
+            }
         }
 
         // Example: apply a custom date range
@@ -112,19 +118,35 @@ class ChartAccuracyPerTicket extends Component
 
         $metrics = $query->get();
 
+        $grouped = [];
+        foreach ($metrics as $metric) {
+            $meta = json_decode($metric->metadata, true);
+            $indexKey = $meta['comparison_index'] ?? $metric->name;
+            
+            if(!isset($grouped[$indexKey])) {
+                $grouped[$indexKey] = [
+                    'label' => 'Task: ' . $metric->name,
+                    'greedy' => null,
+                    'divide' => null,
+                ];
+            }
+            if ($metric->dependency_mode == 1) {
+                $grouped[$indexKey]['greedy'] = $metric->scheduling_accuracy;
+            } else {
+                $grouped[$indexKey]['divide'] = $metric->scheduling_accuracy;
+            }
+        }
+        
+        ksort($grouped);
+        
+        $labels = [];
         $greedyData = [];
         $divideData = [];
-        $labels = [];
-
-        foreach ($metrics as $metric) {
-            $labels[] = 'Ticket ' . $metric->code;
-            if ($metric->dependency_mode == 1) {
-                $greedyData[] = $metric->scheduling_accuracy;
-                $divideData[] = null;
-            } else {
-                $greedyData[] = null;
-                $divideData[] = $metric->scheduling_accuracy;
-            }
+        
+        foreach ($grouped as $item) {
+            $labels[] = $item['label'];
+            $greedyData[] = $item['greedy'];
+            $divideData[] = $item['divide'];
         }
 
        return [
