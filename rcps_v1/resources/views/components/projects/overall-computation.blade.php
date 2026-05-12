@@ -101,15 +101,15 @@
             const result = aiResults[uuid];
             if (result.divide_conquer) {
                 const dcTasks = result.divide_conquer;
-                dcTasks.forEach(t => t.project_name = this.project_name);
-                allDCTasks = allDCTasks.concat(dcTasks);
+                const dcTasksWithProject = dcTasks.map(t => ({...t, project_name: this.project_name}));
+                allDCTasks = allDCTasks.concat(dcTasksWithProject);
                 totalDCHours += dcTasks.reduce((sum, t) => sum + (parseFloat(t.estimated_hours) || 0), 0);
                 totalDCTasks += dcTasks.length;
             }
             if (result.greedy) {
                 const greedyTasks = result.greedy;
-                greedyTasks.forEach(t => t.project_name = this.project_name);
-                allGreedyTasks = allGreedyTasks.concat(greedyTasks);
+                const greedyTasksWithProject = greedyTasks.map(t => ({...t, project_name: this.project_name}));
+                allGreedyTasks = allGreedyTasks.concat(greedyTasksWithProject);
                 totalGreedyHours += greedyTasks.reduce((sum, t) => sum + (parseFloat(t.estimated_hours) || 0), 0);
                 totalGreedyTasks += greedyTasks.length;
             }
