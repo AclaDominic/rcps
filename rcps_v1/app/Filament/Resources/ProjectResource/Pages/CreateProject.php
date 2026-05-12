@@ -45,14 +45,14 @@ class CreateProject extends CreateRecord
             $algorithmMode = 'comparison';
             // Store AI results for later use
             $aiResults = $this->aiResults ?? [];
-            
+
             if ($algorithmMode === 'comparison') {
                 // CREATE 2 PROJECTS FOR COMPARATIVE STUDY
                 $projects = $this->createComparativeStudyProjects($data, $aiResults);
-                
+
                 // Create comparison dashboard entry
                 $comparison = $this->createComparisonRecord($projects);
-                
+
                 // Return first project (or the comparison record)
                 return $projects['greedy'];
             } else {
@@ -68,7 +68,7 @@ class CreateProject extends CreateRecord
             $greedyProject = $projects['greedy'];
             $divideConquerProject = $projects['divide_conquer'];
             $comparisonId = $projects['comparison_id'] ?? uniqid('comp_');
-            
+
             // Just log and return comparison ID
             Log::info('Comparative study created', [
                 'comparison_id' => $comparisonId,
@@ -83,16 +83,16 @@ class CreateProject extends CreateRecord
                 'user_id' => auth()->id(),
                 'created_at' => now()->toISOString()
             ]);
-            
+
             // You can also create a notification or activity
             \Filament\Notifications\Notification::make()
                 ->title('Comparative Study Created')
                 ->body("Comparison ID: {$comparisonId}")
                 ->success()
                 ->send();
-            
+
             return $comparisonId;
-            
+
         } catch (\Exception $e) {
             Log::error('Error in createComparisonRecord: ' . $e->getMessage());
             return null;
@@ -122,7 +122,7 @@ class CreateProject extends CreateRecord
     {
         $originalName = $data['name'];
         $comparisonId = uniqid();
-        
+
         // Create Greedy Algorithm Project
         $greedyData = $data;
         $greedyData['name'] = $originalName . ' - Greedy Algorithm';
@@ -137,7 +137,7 @@ class CreateProject extends CreateRecord
                 'paired_project_id' => null, // Will be set after creating both
             ]
         );
-        
+
         $greedyProject = Project::create([
             'name' => $originalName,
             'description' => $greedyData['description'],
@@ -151,7 +151,7 @@ class CreateProject extends CreateRecord
             'ticket_prefix' => $this->generateUniqueTicketPrefix($originalName, 'G'),
             'metadata' => $greedyData['metadata']
         ]);
-        
+
         // Create Divide & Conquer Algorithm Project  
         $divideConquerData = $data;
         $divideConquerData['name'] = $originalName . ' - Divide & Conquer Algorithm';
@@ -166,7 +166,7 @@ class CreateProject extends CreateRecord
                 'paired_project_id' => $greedyProject->id,
             ]
         );
-        
+
         $divideConquerProject = Project::create([
             'name' => $originalName,
             'description' => $divideConquerData['description'],
@@ -180,23 +180,23 @@ class CreateProject extends CreateRecord
             'ticket_prefix' => $this->generateUniqueTicketPrefix($originalName, 'DC'),
             'metadata' => $divideConquerData['metadata']
         ]);
-        
+
         // Update greedy project with paired ID
         $greedyProject->update([
             'metadata->paired_project_id' => $divideConquerProject->id
         ]);
-        
+
         // Create tickets for both projects if AI tasks are enabled
         if (isset($data['create_tasks_now']) && $data['create_tasks_now'] && !empty($data['add_task'])) {
             $this->createTasksForComparativeStudy(
-                $greedyProject, 
-                $divideConquerProject, 
-                $data, 
+                $greedyProject,
+                $divideConquerProject,
+                $data,
                 $aiResults
             );
         }
-        
-        
+
+
         return [
             'greedy' => $greedyProject,
             'divide_conquer' => $divideConquerProject,
@@ -208,23 +208,23 @@ class CreateProject extends CreateRecord
     {
         $greedyAiResults = $aiResults['greedy'] ?? $aiResults;
         $divideConquerAiResults = $aiResults['divide_conquer'] ?? $aiResults;
-        
+
         // Create tasks for Greedy project
         foreach ($data['add_task'] as $taskData) {
             $this->createTaskWithSubtasks(
-                $greedyProject, 
-                $taskData, 
-                $greedyAiResults, 
+                $greedyProject,
+                $taskData,
+                $greedyAiResults,
                 'greedy'
             );
         }
-        
+
         // Create tasks for Divide & Conquer project  
         foreach ($data['add_task'] as $taskData) {
             $this->createTaskWithSubtasks(
-                $divideConquerProject, 
-                $taskData, 
-                $divideConquerAiResults, 
+                $divideConquerProject,
+                $taskData,
+                $divideConquerAiResults,
                 'divide_conquer'
             );
         }
@@ -235,7 +235,7 @@ class CreateProject extends CreateRecord
         try {
             // Get AI preview based on algorithm mode
             $aiPreview = $this->getAiPreviewForAlgorithm($aiResults, $algorithmMode);
-            
+
             if (!$aiPreview) {
                 Log::warning('No AI preview found for algorithm', [
                     'algorithm' => $algorithmMode,
@@ -247,14 +247,14 @@ class CreateProject extends CreateRecord
             // Get task UUID from preview
             $taskUuid = array_key_first($aiPreview);
             $subtasksArray = $aiPreview[$taskUuid] ?? [];
-            
+
             if (empty($subtasksArray)) {
                 Log::warning('Empty subtasks array in AI preview');
                 return;
             }
 
             // Calculate total hours
-            $totalHours = array_reduce($subtasksArray, function($sum, $task) {
+            $totalHours = array_reduce($subtasksArray, function ($sum, $task) {
                 return $sum + (float) ($task['estimated_hours'] ?? $task['estimation'] ?? 0);
             }, 0);
 
@@ -265,7 +265,7 @@ class CreateProject extends CreateRecord
 
             // Calculate priority based on algorithm
             $mainTaskPriority = $this->calculatePriorityBasedOnAlgorithm(
-                $aiPreview, 
+                $aiPreview,
                 $algorithmMode,
                 $taskData
             );
@@ -294,25 +294,25 @@ class CreateProject extends CreateRecord
             ]);
 
             $createdSubtasks = [];
-            
+
             // 2. Create subtasks with algorithm-specific logic
             foreach ($subtasksArray as $index => $subtaskData) {
                 $subtask = $this->createSubtask(
-                    $project, 
-                    $mainTask, 
-                    $subtaskData, 
-                    $index, 
+                    $project,
+                    $mainTask,
+                    $subtaskData,
+                    $index,
                     $algorithmMode,
                     $taskData
                 );
-                
+
                 $createdSubtasks[] = $subtask;
             }
 
             // 3. Create dependencies with algorithm-specific logic
             $this->createDependenciesBasedOnAlgorithm(
-                $createdSubtasks, 
-                $subtasksArray, 
+                $createdSubtasks,
+                $subtasksArray,
                 $algorithmMode
             );
 
@@ -323,7 +323,7 @@ class CreateProject extends CreateRecord
                 'subtask_count' => count($createdSubtasks),
                 'total_hours' => $totalHours
             ]);
-            
+
             // Clean up preview data if needed
             AiTaskPreview::where('session_id', session()->getId())->delete();
 
@@ -344,7 +344,7 @@ class CreateProject extends CreateRecord
         try {
             // Use the original data
             $projectData = $data;
-            
+
             // Add algorithm-specific metadata
             $projectData['metadata'] = array_merge(
                 $data['metadata'] ?? [],
@@ -356,10 +356,10 @@ class CreateProject extends CreateRecord
                     'created_at' => Carbon::now()
                 ]
             );
-            
+
             // Set dependency mode based on algorithm
             $projectData['dependency_mode'] = $this->getDependencyModeForAlgorithm($algorithmMode);
-            
+
             // Create the project
             $project = Project::create([
                 'name' => $projectData['name'],
@@ -373,20 +373,20 @@ class CreateProject extends CreateRecord
                 'ticket_prefix' => $this->generateUniqueTicketPrefix($projectData['name']),
                 'metadata' => $projectData['metadata']
             ]);
-            
+
             // Create tasks if enabled
             if (isset($data['create_tasks_now']) && $data['create_tasks_now'] && !empty($data['add_task'])) {
                 $this->createTasksForSingleProject($project, $data, $aiResults, $algorithmMode);
             }
-            
+
             Log::info('Single project created with algorithm', [
                 'project_id' => $project->id,
                 'algorithm' => $algorithmMode,
                 'has_tasks' => isset($data['create_tasks_now']) && $data['create_tasks_now']
             ]);
-            
+
             return $project;
-            
+
         } catch (\Exception $e) {
             Log::error('Error in createSingleProjectWithAlgorithm: ' . $e->getMessage(), [
                 'algorithm' => $algorithmMode,
@@ -400,9 +400,9 @@ class CreateProject extends CreateRecord
     {
         foreach ($data['add_task'] as $taskData) {
             $this->createTaskWithSubtasks(
-                $project, 
-                $taskData, 
-                $aiResults, 
+                $project,
+                $taskData,
+                $aiResults,
                 $algorithmMode
             );
         }
@@ -417,12 +417,12 @@ class CreateProject extends CreateRecord
         if (isset($aiResults[$algorithmMode])) {
             return $aiResults[$algorithmMode];
         }
-        
+
         // Kung unified ang structure, gamitin ang general preview
         if (isset($aiResults['preview'])) {
             return $aiResults['preview'];
         }
-        
+
         // Default: use first available preview
         return is_array($aiResults) ? reset($aiResults) : $aiResults;
     }
@@ -433,7 +433,7 @@ class CreateProject extends CreateRecord
     protected function calculatePriorityBasedOnAlgorithm($aiPreview, $algorithmMode, $taskData)
     {
         $service = new TaskComputationsService();
-        
+
         if ($algorithmMode === 'greedy') {
             // Greedy: Higher priority for tasks with immediate value
             return $service->calculateGreedyPriority($aiPreview, $taskData);
@@ -458,21 +458,21 @@ class CreateProject extends CreateRecord
     protected function createSubtask($project, $mainTask, $subtaskData, $index, $algorithmMode, $taskData)
     {
         $computations = new TaskComputationsService();
-        
+
         // Adjust estimations based on algorithm
         $estimation = $this->adjustEstimationForAlgorithm(
-            $subtaskData, 
+            $subtaskData,
             $algorithmMode,
             $index
         );
-        
+
         // Adjust priority based on algorithm
         $priorityId = $this->adjustSubtaskPriorityForAlgorithm(
             $subtaskData,
             $algorithmMode,
             $index
         );
-        
+
         return Ticket::create([
             'project_id' => $project->id,
             'parent_ticket_id' => $mainTask->id,
@@ -497,7 +497,7 @@ class CreateProject extends CreateRecord
                 'skill_requirements' => $subtaskData['skill_requirements'] ?? [],
                 'risk_level' => $subtaskData['risk_level'] ?? 'medium',
                 'parallelizable' => $this->adjustParallelizableForAlgorithm(
-                    $subtaskData, 
+                    $subtaskData,
                     $algorithmMode
                 ),
                 'dependencies' => $subtaskData['dependencies'] ?? [],
@@ -514,7 +514,7 @@ class CreateProject extends CreateRecord
     protected function createDependenciesBasedOnAlgorithm($subtasks, $subtasksArray, $algorithmMode)
     {
         $computations = new TaskComputationsService();
-        
+
         if ($algorithmMode === 'greedy') {
             // Greedy: Minimal dependencies, maximize parallelization
             // $computations->createGreedyDependencies($subtasks, $subtasksArray);
@@ -530,33 +530,33 @@ class CreateProject extends CreateRecord
     protected function adjustEstimationForAlgorithm($subtaskData, $algorithmMode, $index)
     {
         $baseEstimation = floatval(
-            $subtaskData['estimated_hours'] ?? 
-            $subtaskData['estimation'] ?? 
+            $subtaskData['estimated_hours'] ??
+            $subtaskData['estimation'] ??
             0
         );
-        
+
         if ($algorithmMode === 'greedy') {
             // Greedy: May adjust estimations based on priority
             // Example: Reduce time for high-priority tasks
             $priorityScore = $subtaskData['priority_score'] ?? 0;
-            
+
             if ($priorityScore > 7) {
                 // High priority tasks get 20% time reduction (optimistic)
                 return $baseEstimation * 0.8;
             }
         }
-        
+
         return $baseEstimation;
     }
 
     protected function adjustSubtaskPriorityForAlgorithm($subtaskData, $algorithmMode, $index)
     {
         $basePriority = $subtaskData['priority_id'] ?? 2;
-        
+
         if ($algorithmMode === 'greedy') {
             // Greedy: Adjust priority based on quick win potential
             $estimation = floatval($subtaskData['estimated_hours'] ?? $subtaskData['estimation'] ?? 0);
-            
+
             // Quick tasks get higher priority in greedy
             if ($estimation <= 2) {
                 return max(1, $basePriority - 1); // Increase priority
@@ -564,26 +564,26 @@ class CreateProject extends CreateRecord
                 return min(5, $basePriority + 1); // Decrease priority
             }
         }
-        
+
         return $basePriority;
     }
 
     protected function adjustParallelizableForAlgorithm($subtaskData, $algorithmMode)
     {
         $baseValue = $subtaskData['parallelizable'] ?? true;
-        
+
         if ($algorithmMode === 'greedy') {
             // Greedy favors parallelizable tasks more
             return $baseValue === true ? true : false;
         }
-        
+
         return $baseValue;
     }
 
     public function previewTask($taskUuid)
     {
         $this->selectedTaskUuid = $taskUuid;
-        
+
         $preview = AiTaskPreview::where('task_uuid', $taskUuid)
             ->where('session_id', session()->getId())
             ->first();
@@ -615,13 +615,13 @@ class CreateProject extends CreateRecord
                     'total_hours' => $preview->total_hours,
                     'main_task_name' => $preview->main_task_name,
                     'main_task_description' => $preview->main_task_description,
-                    'start_date'=>Carbon::parse($preview->start_date)->format('F d, Y'),
-                    'end_date'=>Carbon::parse($preview->end_date)->format('F d, Y'),
-                    'day_required'=> number_format(($preview->total_hours ?? 0) / 8, 2),
-                    'average_total' => ($totalHours != 0)?number_format($totalHours / $totalTasks, 2):0
+                    'start_date' => Carbon::parse($preview->start_date)->format('F d, Y'),
+                    'end_date' => Carbon::parse($preview->end_date)->format('F d, Y'),
+                    'day_required' => number_format(($preview->total_hours ?? 0) / 8, 2),
+                    'average_total' => ($totalHours != 0) ? number_format($totalHours / $totalTasks, 2) : 0
                 ]
             ];
-             $this->dispatchBrowserEvent('open-task-preview', [
+            $this->dispatchBrowserEvent('open-task-preview', [
                 'previewData' => $this->previewData,
             ]);
         } else {
@@ -642,7 +642,7 @@ class CreateProject extends CreateRecord
             $data['add_task'] = $this->data['add_task'][$taskUuid];
 
             $data['add_subtasks'] = $this->data['add_task'][$taskUuid]['add_subtask'];
-           
+
             $algorithmMode = $this->data['algorithm_mode'] ?? 'divide_conquer'; // GET ALGORITHM FROM FORM
 
             $algorithmMode = $data['mode'] ?? 'divide_conquer';
@@ -654,7 +654,7 @@ class CreateProject extends CreateRecord
                 // SINGLE ALGORITHM: Generate based on selected algorithm
                 return $this->generateSingleAiTasks($data, $taskUuid, $algorithmMode);
             }
-            
+
         } catch (\Exception $e) {
             Log::error($e);
             $this->dispatchBrowserEvent('ai-generation-error', [
@@ -669,22 +669,22 @@ class CreateProject extends CreateRecord
         $result = $this->generateAiSubtasks($data, $algorithmMode);
 
         $generatedTasks = $result['tasks'];
-        
+
         // Force clean arrays to avoid Livewire corruption
         $generatedTasks = array_values(json_decode(json_encode($generatedTasks), true));
 
         $projectComplexity = $result['complexity'];
-        
+
         // Calculate total hours
-        $totalHours = collect($generatedTasks)->sum(function($task) {
+        $totalHours = collect($generatedTasks)->sum(function ($task) {
             return floatval($task['estimated_hours'] ?? $task['estimation'] ?? 0);
         });
-    
-   
+
+
         $this->aiResults[$taskUuid][$algorithmMode] = $generatedTasks;
 
         $this->aiResults[$taskUuid]['is_comparative'] = true;
-  
+
         // Show success notification
         $this->dispatchBrowserEvent('notify', [
             'message' => ucfirst(str_replace('_', ' ', $algorithmMode)) . ' AI tasks generated successfully!',
@@ -703,7 +703,7 @@ class CreateProject extends CreateRecord
 
         $dcTasks = $divideConquerResult['tasks'];
 
-        $dcTotalHours = collect($dcTasks)->sum(function($task) {
+        $dcTotalHours = collect($dcTasks)->sum(function ($task) {
             return floatval($task['estimated_hours'] ?? $task['estimation'] ?? 0);
         });
 
@@ -723,7 +723,7 @@ class CreateProject extends CreateRecord
         $greedyResult = $this->generateAiSubtasks($data, 'greedy', $dcWorkloadPerUser);
         $greedyTasks = $greedyResult['tasks'];
 
-        $greedyTotalHours = collect($greedyTasks)->sum(function($task) {
+        $greedyTotalHours = collect($greedyTasks)->sum(function ($task) {
             return floatval($task['estimated_hours'] ?? $task['estimation'] ?? 0);
         });
 
@@ -748,7 +748,7 @@ class CreateProject extends CreateRecord
             'greedy' => $greedyTasks,
             'is_comparative' => true
         ];
-    
+
         // Generate comparison summary
         $comparisonSummary = $this->generateComparisonSummary($dcTasks, $greedyTasks);
 
@@ -758,7 +758,7 @@ class CreateProject extends CreateRecord
             'comparative' => true,
             'summary' => $comparisonSummary
         ]);
-    
+
         return true;
     }
 
@@ -767,19 +767,19 @@ class CreateProject extends CreateRecord
         $dcHours = collect($dcTasks)->sum('estimated_hours');
 
         $greedyHours = collect($greedyTasks)->sum('estimated_hours');
-        
+
         $dcParallel = collect($dcTasks)->where('parallelizable', true)->count();
 
         $greedyParallel = collect($greedyTasks)->where('parallelizable', true)->count();
-        
-        $dcDependencies = collect($dcTasks)->sum(function($task) {
+
+        $dcDependencies = collect($dcTasks)->sum(function ($task) {
             return count($task['dependencies'] ?? []);
         });
 
-        $greedyDependencies = collect($greedyTasks)->sum(function($task) {
+        $greedyDependencies = collect($greedyTasks)->sum(function ($task) {
             return count($task['dependencies'] ?? []);
         });
-     
+
         return [
             'hours_difference' => $greedyHours - $dcHours,
             'parallel_difference' => $greedyParallel - $dcParallel,
@@ -805,8 +805,8 @@ class CreateProject extends CreateRecord
         $end_date = $value['end_date'];
 
         $start = Carbon::parse($start_date);
-        $end = Carbon::parse($end_date);    
-        
+        $end = Carbon::parse($end_date);
+
         // Calculate total available hours
         $totalDays = $end->diffInDays($start);
         $totalAvailableHours = $totalDays * 8;
@@ -820,7 +820,7 @@ class CreateProject extends CreateRecord
 
         $mainCritical = $this->TaskComputationsService->isCriticalPath($mainProjectComplexity['level_num']);
 
-        $subtasks=[];
+        $subtasks = [];
         $cachedWorkloads = []; // Cache workloads to consider assignments within the same loop
 
         foreach ($value['add_subtasks'] as $subtask) {
@@ -847,7 +847,7 @@ class CreateProject extends CreateRecord
             if ($targetRole) {
                 // Fetch users for this role
                 $users = \App\Models\User::role($targetRole)->get();
-                
+
                 // Get initial workloads for these users if not in cache
                 $newUsers = $users->filter(fn($u) => !isset($cachedWorkloads[$u->id]));
                 if ($newUsers->isNotEmpty()) {
@@ -856,28 +856,28 @@ class CreateProject extends CreateRecord
                         $cachedWorkloads[$userId] = $workload;
                     }
                 }
-                
+
                 // Build current workloads for this call
                 $currentWorkloads = [];
                 foreach ($users as $u) {
                     $currentWorkloads[$u->id] = $cachedWorkloads[$u->id] ?? 0;
                 }
-                
+
                 $result = $this->TaskComputationsService->getRecommendedUserForRole(
-                    $targetRole, 
-                    2, 
-                    $generatedTask['estimated_hours'] ?? 8, 
+                    $targetRole,
+                    2,
+                    $generatedTask['estimated_hours'] ?? 8,
                     $currentWorkloads
                 );
-                
+
                 if ($result && $result['user']) {
                     $selectedUser = $result['user'];
                     $generatedTask['responsible_id'] = $selectedUser->id;
                     $generatedTask['responsible_name'] = $selectedUser->name;
-                    
+
                     // Update cache with the new task's hours!
                     $cachedWorkloads[$selectedUser->id] += floatval($generatedTask['estimated_hours'] ?? 0);
-                    
+
                     // Generate assessment
                     $assessment = "Chosen via algorithm.\n";
                     foreach ($result['candidates'] as $candidate) {
@@ -888,12 +888,12 @@ class CreateProject extends CreateRecord
                     $generatedTask['assignment_assessment'] = $assessment;
 
                     // Save candidates for the frontend modal
-                    $filteredCandidates = array_filter($result['candidates'] ?? [], function($c) use ($selectedUser) {
+                    $filteredCandidates = array_filter($result['candidates'] ?? [], function ($c) use ($selectedUser) {
                         return $c['user']->id !== $selectedUser->id;
                     });
                     $selectedUserScore = $result['user_score'] ?? 0;
                     $generatedTask['selected_user_score'] = $selectedUserScore;
-                    $generatedTask['candidates'] = array_map(function($c) use ($selectedUserScore) {
+                    $generatedTask['candidates'] = array_map(function ($c) use ($selectedUserScore) {
                         $reason = $c['reason'] ?? ("Score: " . round($c['score'], 1) . ". Workload: " . round($c['workload'], 1) . "h.");
                         if ($c['score'] < $selectedUserScore) {
                             $diff = $selectedUserScore - $c['score'];
@@ -937,10 +937,10 @@ class CreateProject extends CreateRecord
         foreach ($subtasks as $i => &$subtask) {
             // Ensure numeric estimated hours
             $subtask['estimated_hours'] = floatval($subtask['estimated_hours'] ?? 1.0);
-            
+
             // Set order
             $subtask['order'] = $i + 1;
-            
+
             // Algorithm-specific defaults
             if ($algorithmMode === 'greedy') {
                 // GREEDY DEFAULTS
@@ -949,19 +949,19 @@ class CreateProject extends CreateRecord
                 $subtask['resource_intensity'] = $subtask['resource_intensity'] ?? 1; // Lower for greedy
                 $subtask['risk_level'] = $subtask['risk_level'] ?? 'low';
                 $subtask['dependencies'] = $subtask['dependencies'] ?? []; // Minimize dependencies
-                
+
                 // Greedy-specific fields
-                $subtask['quick_win_score'] = $subtask['quick_win_score'] ?? 
-                    ($subtask['estimated_hours'] <= 2 ? 9 : 
-                    ($subtask['estimated_hours'] <= 4 ? 7 : 5));
-                
-                $subtask['immediate_impact'] = $subtask['immediate_impact'] ?? 
+                $subtask['quick_win_score'] = $subtask['quick_win_score'] ??
+                    ($subtask['estimated_hours'] <= 2 ? 9 :
+                        ($subtask['estimated_hours'] <= 4 ? 7 : 5));
+
+                $subtask['immediate_impact'] = $subtask['immediate_impact'] ??
                     (($subtask['is_critical_path'] ?? false) ? 8 : 6);
-                
-                $subtask['effort_to_value_ratio'] = $subtask['effort_to_value_ratio'] ?? 
-                    ($subtask['estimated_hours'] > 0 ? 
-                    ($subtask['immediate_impact'] / $subtask['estimated_hours']) : 1.0);
-                    
+
+                $subtask['effort_to_value_ratio'] = $subtask['effort_to_value_ratio'] ??
+                    ($subtask['estimated_hours'] > 0 ?
+                        ($subtask['immediate_impact'] / $subtask['estimated_hours']) : 1.0);
+
             } else {
                 // DIVIDE & CONQUER DEFAULTS
                 $subtask['parallelizable'] = $subtask['parallelizable'] ?? true;
@@ -970,15 +970,15 @@ class CreateProject extends CreateRecord
                 $subtask['risk_level'] = $subtask['risk_level'] ?? 'medium';
                 $subtask['dependencies'] = $subtask['dependencies'] ?? [];
             }
-            
+
             // Common fields
             $subtask['skill_requirements'] = $subtask['skill_requirements'] ?? [];
             $subtask['priority_base_score'] = $subtask['priority_base_score'] ?? 50;
-            
+
             // Add algorithm metadata
             $subtask['algorithm'] = $algorithmMode;
         }
-  
+
         // Apply algorithm-specific prioritization
         if ($algorithmMode === 'greedy') {
             $prioritizedTasks = $this->TaskComputationsService->applyGreedyPrioritization($subtasks, $value);

@@ -42,8 +42,9 @@ class Scrum extends Page implements HasForms
         $isMember = $this->project->users->contains('id', $userId);
         $isTicketOwner = $this->project->tickets->contains('owner_id', $userId);
         $isTicketResponsible = $this->project->tickets->contains('responsible_id', $userId);
+        $isCore = auth()->user()->hasRoleType(['CORE']);
 
-        if (!($isOwner || $isMember || $isTicketOwner || $isTicketResponsible)) {
+        if (!($isOwner || $isMember || $isTicketOwner || $isTicketResponsible || $isCore)) {
             abort(403);
         }
 
