@@ -10,7 +10,7 @@ echo "Database connected!"
 
 # Run migrations (safe, applies new ones without wiping)
 echo "Running migrations..."
-php artisan migrate:fresh --force
+php artisan migrate --force
 
 # Check if database has data
 echo "Checking if database has data..."
