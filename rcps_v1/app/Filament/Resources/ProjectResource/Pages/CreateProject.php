@@ -669,6 +669,9 @@ class CreateProject extends CreateRecord
         $result = $this->generateAiSubtasks($data, $algorithmMode);
 
         $generatedTasks = $result['tasks'];
+        
+        // Force clean arrays to avoid Livewire corruption
+        $generatedTasks = json_decode(json_encode($generatedTasks), true);
 
         $projectComplexity = $result['complexity'];
         
@@ -734,6 +737,10 @@ class CreateProject extends CreateRecord
             }
         }
         $dcTasks = $this->TaskComputationsService->updateReasonTextsWithCrossAlgorithmHours($dcTasks, $greedyHoursPerUser);
+
+        // Force clean arrays to avoid Livewire corruption
+        $dcTasks = json_decode(json_encode($dcTasks), true);
+        $greedyTasks = json_decode(json_encode($greedyTasks), true);
 
         // Store in component for preview
         $this->aiResults[$taskUuid] = [
