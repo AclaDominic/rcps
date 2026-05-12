@@ -569,7 +569,7 @@ class TaskComputationsService
             }
 
             // Select appropriate user from the filtered pool
-            $selectedUser = $this->selectResponsibleUser(
+            $assignmentResult = $this->selectResponsibleUser(
                 $taskEligibleUsers,
                 $userWorkloads,
                 $taskPriority,
@@ -579,6 +579,29 @@ class TaskComputationsService
                 $userExperience
             );
             
+            $selectedUser = $assignmentResult['user'] ?? null;
+            
+            // Save candidates (other eligible users)
+            $filteredCandidates = array_filter($assignmentResult['candidates'] ?? [], function($c) use ($selectedUser) {
+                return !$selectedUser || $c['user']->id !== $selectedUser->id;
+            });
+            $selectedUserScore = $assignmentResult['user_score'] ?? 0;
+            $task['selected_user_score'] = $selectedUserScore;
+            $task['candidates'] = array_map(function($c) use ($selectedUserScore) {
+                $reason = $c['reason'] ?? ("Score: " . round($c['score'], 1) . ". Workload: " . round($c['workload'], 1) . "h.");
+                if ($c['score'] < $selectedUserScore) {
+                    $diff = $selectedUserScore - $c['score'];
+                    $reason .= ". Lower score by " . round($diff, 1) . " pts";
+                }
+                return [
+                    'id' => $c['user']->id,
+                    'name' => $c['user']->name,
+                    'score' => $c['score'],
+                    'workload' => $c['workload'],
+                    'reason' => $reason
+                ];
+            }, array_values($filteredCandidates));
+
             if ($selectedUser) {
                 $task['responsible_id'] = $selectedUser->id;
                 $task['responsible_name'] = $selectedUser->name;
@@ -634,7 +657,7 @@ class TaskComputationsService
     }
 
     // Calculate current workload from existing tickets
-    protected function calculateCurrentWorkloads($users)
+    public function calculateCurrentWorkloads($users)
     {
         $workloads = [];
         
@@ -694,9 +717,10 @@ class TaskComputationsService
     }
 
     // Select responsible user based on multiple factors
-    protected function selectResponsibleUser($users, $userWorkloads, $priority, $estimatedHours, $skillRequirements, $isCritical, $userExperience = [])
+    public function selectResponsibleUser($users, $userWorkloads, $priority, $estimatedHours, $skillRequirements, $isCritical, $userExperience = [])
     {
         $eligibleUsers = [];
+        $allCandidates = [];
 
         foreach ($users as $user) {
             $userId = $user->id;
@@ -714,18 +738,82 @@ class TaskComputationsService
                 $experienceCount
             );
             
+            // Generate descriptive reason
+            $reasons = [];
+            $userMaxWorkload = $this->getUserMaxWorkload($user);
+            
+            if ($currentWorkload >= $userMaxWorkload) {
+                $reasons[] = "At/Over capacity (" . round($currentWorkload, 1) . "h/" . $userMaxWorkload . "h)";
+            } elseif ($currentWorkload > $userMaxWorkload * 0.7) {
+                $reasons[] = "High workload (" . round($currentWorkload, 1) . "h)";
+            }
+            
+            if ($priority == 1 && $experienceCount <= 5) {
+                $reasons[] = "Low experience for high priority task";
+            }
+            
+            if (!empty($skillRequirements)) {
+                $skillMatch = $this->calculateSkillMatch($user, $skillRequirements);
+                if ($skillMatch < 100) {
+                    $reasons[] = "Skill match: " . round($skillMatch) . "%";
+                }
+            }
+            
+            if ($estimatedHours > 4 && $currentWorkload > 20) {
+                $reasons[] = "Busy user for long task";
+            }
+            
+            $reasonStr = implode(". ", $reasons);
+            if (empty($reasonStr)) {
+                $reasonStr = "Good match. Workload: " . round($currentWorkload, 1) . "h";
+            } else {
+                $reasonStr .= ". Score: " . round($score, 1);
+            }
+            
+            $allCandidates[] = [
+                'user' => $user,
+                'score' => $score,
+                'workload' => $currentWorkload,
+                'reason' => $reasonStr
+            ];
+
             if ($score > 0) {
                 $eligibleUsers[] = [
                     'user' => $user,
                     'score' => $score,
-                    'workload' => $currentWorkload
+                    'workload' => $currentWorkload,
+                    'reason' => $reasonStr
                 ];
             }
         }
         
+        // Sort all candidates by score (descending)
+        usort($allCandidates, function($a, $b) {
+            return $b['score'] <=> $a['score'];
+        });
+
         // If no eligible users, use least busy user
         if (empty($eligibleUsers)) {
-            return $this->selectLeastBusyUser($users, $userWorkloads);
+            $leastBusy = $this->selectLeastBusyUser($users, $userWorkloads);
+            $leastBusyScore = 0;
+            if ($leastBusy) {
+                foreach ($allCandidates as $c) {
+                    if ($c['user']->id === $leastBusy->id) {
+                        $leastBusyScore = $c['score'];
+                        break;
+                    }
+                }
+            }
+            return [
+                'user' => $leastBusy,
+                'user_score' => $leastBusyScore,
+                'candidates' => array_map(function($c) use ($leastBusy) {
+                    if ($leastBusy && $c['user']->id === $leastBusy->id) {
+                        $c['reason'] = "Selected as least busy fallback. " . $c['reason'];
+                    }
+                    return $c;
+                }, $allCandidates)
+            ];
         }
         
         // Sort by score (descending)
@@ -733,7 +821,30 @@ class TaskComputationsService
             return $b['score'] <=> $a['score'];
         });
         
-        return $eligibleUsers[0]['user'];
+        return [
+            'user' => $eligibleUsers[0]['user'],
+            'user_score' => $eligibleUsers[0]['score'] ?? 0,
+            'candidates' => $allCandidates
+        ];
+    }
+
+    public function getRecommendedUserForRole($roleName, $priority = 2, $estimatedHours = 8, $workloads = null)
+    {
+        $users = \App\Models\User::role($roleName)->get();
+        if ($users->isEmpty()) {
+            return null;
+        }
+        
+        if ($workloads === null) {
+            $workloads = $this->calculateCurrentWorkloads($users);
+        }
+        
+        $userExperience = [];
+        foreach ($users as $user) {
+            $userExperience[$user->id] = \App\Models\Ticket::where('responsible_id', $user->id)->count();
+        }
+        
+        return $this->selectResponsibleUser($users, $workloads, $priority, $estimatedHours, [], false, $userExperience);
     }
 
     // Calculate user suitability score

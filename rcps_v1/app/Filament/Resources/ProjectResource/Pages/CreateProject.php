@@ -486,6 +486,7 @@ class CreateProject extends CreateRecord
             'dependency_mode' => $this->getDependencyModeForAlgorithm($algorithmMode),
             'type_id' => 1,
             'status_id' => 1,
+            'assignment_assessment' => $subtaskData['assignment_assessment'] ?? null,
             'start_date' => $computations->calculateSubtaskStartDate($project, $index, $algorithmMode),
             'due_date' => $computations->calculateSubtaskDueDate($project, $subtaskData, $index, $algorithmMode),
             'metadata' => json_encode([
@@ -813,6 +814,7 @@ class CreateProject extends CreateRecord
         $mainCritical = $this->TaskComputationsService->isCriticalPath($mainProjectComplexity['level_num']);
 
         $subtasks=[];
+        $cachedWorkloads = []; // Cache workloads to consider assignments within the same loop
 
         foreach ($value['add_subtasks'] as $subtask) {
             // Merge main task context into subtask
@@ -825,13 +827,83 @@ class CreateProject extends CreateRecord
             // Calculate subtask complexity
             $subtaskComplexity = $this->TaskComputationsService->calculateProjectComplexity($subtaskForComplexity);
 
-            $subtasks[] = $this->TaskComputationsService->generateTaskMetrics(
+            $generatedTask = $this->TaskComputationsService->generateTaskMetrics(
                 $subtaskComplexity,
                 $totalAvailableHours,
                 $subtaskForComplexity,
                 $mainCritical,
                 $algorithmMode
             );
+
+            // Run algorithm for target role if set
+            $targetRole = $subtask['target_role'] ?? null;
+            if ($targetRole) {
+                // Fetch users for this role
+                $users = \App\Models\User::role($targetRole)->get();
+                
+                // Get initial workloads for these users if not in cache
+                $newUsers = $users->filter(fn($u) => !isset($cachedWorkloads[$u->id]));
+                if ($newUsers->isNotEmpty()) {
+                    $initialWorkloads = $this->TaskComputationsService->calculateCurrentWorkloads($newUsers);
+                    foreach ($initialWorkloads as $userId => $workload) {
+                        $cachedWorkloads[$userId] = $workload;
+                    }
+                }
+                
+                // Build current workloads for this call
+                $currentWorkloads = [];
+                foreach ($users as $u) {
+                    $currentWorkloads[$u->id] = $cachedWorkloads[$u->id] ?? 0;
+                }
+                
+                $result = $this->TaskComputationsService->getRecommendedUserForRole(
+                    $targetRole, 
+                    2, 
+                    $generatedTask['estimated_hours'] ?? 8, 
+                    $currentWorkloads
+                );
+                
+                if ($result && $result['user']) {
+                    $selectedUser = $result['user'];
+                    $generatedTask['responsible_id'] = $selectedUser->id;
+                    $generatedTask['responsible_name'] = $selectedUser->name;
+                    
+                    // Update cache with the new task's hours!
+                    $cachedWorkloads[$selectedUser->id] += floatval($generatedTask['estimated_hours'] ?? 0);
+                    
+                    // Generate assessment
+                    $assessment = "Chosen via algorithm.\n";
+                    foreach ($result['candidates'] as $candidate) {
+                        if ($candidate['user']->id !== $selectedUser->id) {
+                            $assessment .= "- {$candidate['user']->name}: Score {$candidate['score']} (Workload: {$candidate['workload']}h)\n";
+                        }
+                    }
+                    $generatedTask['assignment_assessment'] = $assessment;
+
+                    // Save candidates for the frontend modal
+                    $filteredCandidates = array_filter($result['candidates'] ?? [], function($c) use ($selectedUser) {
+                        return $c['user']->id !== $selectedUser->id;
+                    });
+                    $selectedUserScore = $result['user_score'] ?? 0;
+                    $generatedTask['selected_user_score'] = $selectedUserScore;
+                    $generatedTask['candidates'] = array_map(function($c) use ($selectedUserScore) {
+                        $reason = $c['reason'] ?? ("Score: " . round($c['score'], 1) . ". Workload: " . round($c['workload'], 1) . "h.");
+                        if ($c['score'] < $selectedUserScore) {
+                            $diff = $selectedUserScore - $c['score'];
+                            $reason .= ". Lower score by " . round($diff, 1) . " pts";
+                        }
+                        return [
+                            'id' => $c['user']->id,
+                            'name' => $c['user']->name,
+                            'score' => $c['score'],
+                            'workload' => $c['workload'],
+                            'reason' => $reason
+                        ];
+                    }, array_values($filteredCandidates));
+                }
+            }
+
+            $subtasks[] = $generatedTask;
         }
 
         // PROCESS BASED ON ALGORITHM
