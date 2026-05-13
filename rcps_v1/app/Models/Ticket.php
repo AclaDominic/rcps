@@ -92,6 +92,62 @@ class Ticket extends Model implements HasMedia
                 Ticket::where('id', $item->id)->update(['epic_id' => $sprint->epic_id]);
             }
         });
+
+        static::updated(function (Ticket $item) {
+            if ($item->wasChanged('status_id') && $item->parent_ticket_id) {
+                $mainTask = Ticket::find($item->parent_ticket_id);
+                if ($mainTask) {
+                    $subtasks = Ticket::where('parent_ticket_id', $mainTask->id)->with('status')->get();
+                    
+                    if ($subtasks->isEmpty()) return;
+
+                    $allPending = true;
+                    $anyPending = false;
+                    $allCompleted = true;
+                    $anyActive = false;
+                    $activeStatusId = null;
+
+                    foreach ($subtasks as $sub) {
+                        $statusType = $sub->status ? $sub->status->type : 'pending';
+                        if ($statusType === 'pending') $anyPending = true;
+                        if ($statusType !== 'pending') $allPending = false;
+                        if ($statusType !== 'completed') $allCompleted = false;
+                        if ($statusType === 'active') {
+                            $anyActive = true;
+                            if (!$activeStatusId) {
+                                $activeStatusId = $sub->status_id;
+                            }
+                        }
+                    }
+
+                    $newStatusId = $mainTask->status_id;
+
+                    // Stick to lowest column value logic (applies to all modes)
+                    if ($anyPending) {
+                        $pendingStatus = TicketStatus::where('type', 'pending')
+                            ->where(function($q) use ($mainTask) {
+                                $q->where('project_id', $mainTask->project_id)
+                                  ->orWhereNull('project_id');
+                            })->orderBy('order', 'asc')->first();
+                        if ($pendingStatus) $newStatusId = $pendingStatus->id;
+                    } elseif ($anyActive) {
+                        $newStatusId = $activeStatusId;
+                    } elseif ($allCompleted) {
+                        $completedStatus = TicketStatus::where('type', 'completed')
+                            ->where(function($q) use ($mainTask) {
+                                $q->where('project_id', $mainTask->project_id)
+                                  ->orWhereNull('project_id');
+                            })->orderBy('order', 'desc')->first();
+                        if ($completedStatus) $newStatusId = $completedStatus->id;
+                    }
+
+                    if ($mainTask->status_id !== $newStatusId) {
+                        $mainTask->status_id = $newStatusId;
+                        $mainTask->save();
+                    }
+                }
+            }
+        });
     }
 
     public static function rules(): array

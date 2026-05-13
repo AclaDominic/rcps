@@ -1,12 +1,19 @@
-<div class="kanban-record" data-id="{{ $record['id'] }}">
+<div class="kanban-record @if($record['isMainTask']) undraggable @endif" data-id="{{ $record['id'] }}">
+    @if(!$record['isMainTask'])
     <button type="button" class="handle">
         <x-heroicon-o-arrows-expand class="w-5 h-5" />
     </button>
+    @endif
     <div class="record-info">
         @if($this->isMultiProject())
             <span class="record-subtitle">
                 {{ $record['project']->name }}
             </span>
+        @endif
+        @if($record['isMainTask'])
+            <div class="mb-1">
+                <span class="px-2 py-1 rounded text-xs text-white bg-blue-500 font-bold">{{ __('Main') }}</span>
+            </div>
         @endif
         <a href="{{ route('filament.resources.tickets.view', $record['id']) }}" target="_blank" class="record-title">
             <span class="code">{{ $record['code'] }}</span>

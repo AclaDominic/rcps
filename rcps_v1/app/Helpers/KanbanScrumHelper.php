@@ -32,6 +32,7 @@ trait KanbanScrumHelper
     public $types = [];
     public $priorities = [];
     public $includeNotAffectedTickets = false;
+    public $main_task = null;
 
     public bool $ticket = false;
 
@@ -57,6 +58,16 @@ trait KanbanScrumHelper
                         ->label(__('Ticket priorities'))
                         ->multiple()
                         ->options(TicketPriority::all()->pluck('name', 'id')),
+
+                    Select::make('main_task')
+                        ->label(__('Main Task'))
+                        ->options(function() {
+                            if (!$this->project) return [];
+                            return Ticket::where('project_id', $this->project->id)
+                                ->whereNull('parent_ticket_id')
+                                ->pluck('name', 'id');
+                        })
+                        ->placeholder(__('All Tasks')),
 
                     Toggle::make('includeNotAffectedTickets')
                         ->label(__('Show only not affected tickets'))
@@ -131,6 +142,12 @@ trait KanbanScrumHelper
         if ($this->includeNotAffectedTickets) {
             $query->whereNull('responsible_id');
         }
+        if ($this->main_task) {
+            $query->where(function ($q) {
+                $q->where('id', $this->main_task)
+                  ->orWhere('parent_ticket_id', $this->main_task);
+            });
+        }
         $query->where(function ($query) {
             return $query->where('owner_id', auth()->user()->id)
                 ->orWhere('responsible_id', auth()->user()->id)
@@ -154,6 +171,7 @@ trait KanbanScrumHelper
                 'priority' => $item->priority,
                 'epic' => $item->epic,
                 'relations' => $item->relations,
+                'isMainTask' => is_null($item->parent_ticket_id),
                 'totalLoggedHours' => $item->totalLoggedSeconds ? $item->totalLoggedHours : null
             ]);
     }
@@ -169,6 +187,41 @@ trait KanbanScrumHelper
 
             if (!$ticket) {
                 Filament::notify('danger', __('Ticket not found'));
+                return;
+            }
+
+            // 0. State Machine Validation
+            $oldOrder = $oldStatus ? $oldStatus->order : 0;
+            $newOrder = $status ? $status->order : 0;
+            $isValid = false;
+
+            // Incremental move
+            if ($newOrder == $oldOrder + 1) {
+                $isValid = true;
+            } else {
+                // Fallback to 1st or 2nd column
+                $query = TicketStatus::query();
+                if ($ticket->project_id) {
+                    $query->where(function($q) use ($ticket) {
+                        $q->where('project_id', $ticket->project_id)
+                          ->orWhereNull('project_id');
+                    });
+                }
+                $projectStatuses = $query->orderBy('order', 'asc')->get();
+                
+                $firstStatus = $projectStatuses->first();
+                $secondStatus = $projectStatuses->skip(1)->first();
+
+                if ($firstStatus && $newStatus == $firstStatus->id) {
+                    $isValid = true;
+                } elseif ($secondStatus && $newStatus == $secondStatus->id) {
+                    $isValid = true;
+                }
+            }
+
+            if (!$isValid) {
+                DB::rollBack();
+                Filament::notify('danger', __('Invalid status transition. You can only move incrementally or fall back to the first two columns.'));
                 return;
             }
 

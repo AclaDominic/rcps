@@ -83,6 +83,7 @@ class GeneralSystemSeeder extends Seeder
         $projectStatuses = ProjectStatus::all();
 
         // 3. Generate Projects
+        /*
         for ($i = 1; $i <= 5; $i++) {
             $startDate = Carbon::now()->subMonths(rand(1, 6))->startOfDay();
             // Start and end date should be at least 1 month apart
@@ -185,5 +186,6 @@ class GeneralSystemSeeder extends Seeder
                 }
             }
         }
+        */
     }
 }
