@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\TicketStatus;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class TicketStatusSeeder extends Seeder
@@ -31,10 +30,24 @@ class TicketStatusSeeder extends Seeder
             'type' => 'completed'
         ],
         [
+            'name' => 'Review',
+            'color' => '#00ffff', // Cyan
+            'is_default' => false,
+            'order' => 4,
+            'type' => 'active' // Review is an active phase
+        ],
+        [
+            'name' => 'Completed',
+            'color' => '#ffff00', // Yellow
+            'is_default' => false,
+            'order' => 5,
+            'type' => 'completed'
+        ],
+        [
             'name' => 'Archived',
             'color' => '#ff0000',
             'is_default' => false,
-            'order' => 4,
+            'order' => 6,
             'type' => 'completed'
         ],
     ];
@@ -47,7 +60,7 @@ class TicketStatusSeeder extends Seeder
     public function run()
     {
         foreach ($this->data as $item) {
-            TicketStatus::firstOrCreate($item);
+            TicketStatus::updateOrCreate(['name' => $item['name']], $item);
         }
     }
 }

@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
         $this->call(ProjectStatusSeeder::class);
         $this->call(DashboardMetricsSeeder::class);
         $this->call(RoadmapSeeder::class);
+        $this->call(KanbanProjectSeeder::class);
 
         if (app()->environment('local')) {
             $this->call(GeneralSystemSeeder::class);

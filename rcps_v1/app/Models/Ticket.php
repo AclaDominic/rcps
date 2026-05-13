@@ -101,44 +101,20 @@ class Ticket extends Model implements HasMedia
                     
                     if ($subtasks->isEmpty()) return;
 
-                    $allPending = true;
-                    $anyPending = false;
-                    $allCompleted = true;
-                    $anyActive = false;
-                    $activeStatusId = null;
+                    $lowestOrderSubtask = null;
+                    $lowestOrder = PHP_INT_MAX;
 
                     foreach ($subtasks as $sub) {
-                        $statusType = $sub->status ? $sub->status->type : 'pending';
-                        if ($statusType === 'pending') $anyPending = true;
-                        if ($statusType !== 'pending') $allPending = false;
-                        if ($statusType !== 'completed') $allCompleted = false;
-                        if ($statusType === 'active') {
-                            $anyActive = true;
-                            if (!$activeStatusId) {
-                                $activeStatusId = $sub->status_id;
-                            }
+                        $order = $sub->status ? $sub->status->order : 1;
+                        if ($order < $lowestOrder) {
+                            $lowestOrder = $order;
+                            $lowestOrderSubtask = $sub;
                         }
                     }
 
                     $newStatusId = $mainTask->status_id;
-
-                    // Stick to lowest column value logic (applies to all modes)
-                    if ($anyPending) {
-                        $pendingStatus = TicketStatus::where('type', 'pending')
-                            ->where(function($q) use ($mainTask) {
-                                $q->where('project_id', $mainTask->project_id)
-                                  ->orWhereNull('project_id');
-                            })->orderBy('order', 'asc')->first();
-                        if ($pendingStatus) $newStatusId = $pendingStatus->id;
-                    } elseif ($anyActive) {
-                        $newStatusId = $activeStatusId;
-                    } elseif ($allCompleted) {
-                        $completedStatus = TicketStatus::where('type', 'completed')
-                            ->where(function($q) use ($mainTask) {
-                                $q->where('project_id', $mainTask->project_id)
-                                  ->orWhereNull('project_id');
-                            })->orderBy('order', 'desc')->first();
-                        if ($completedStatus) $newStatusId = $completedStatus->id;
+                    if ($lowestOrderSubtask) {
+                        $newStatusId = $lowestOrderSubtask->status_id;
                     }
 
                     if ($mainTask->status_id !== $newStatusId) {

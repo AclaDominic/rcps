@@ -191,24 +191,30 @@ trait KanbanScrumHelper
             }
 
             // 0. State Machine Validation
-            $oldOrder = $oldStatus ? $oldStatus->order : 0;
-            $newOrder = $status ? $status->order : 0;
+            $query = TicketStatus::query();
+            if ($ticket->project_id) {
+                $query->where(function($q) use ($ticket) {
+                    $q->where('project_id', $ticket->project_id)
+                      ->orWhereNull('project_id');
+                });
+            }
+            $projectStatuses = $query->orderBy('order', 'asc')->get();
+
             $isValid = false;
 
-            // Incremental move
-            if ($newOrder == $oldOrder + 1) {
-                $isValid = true;
-            } else {
-                // Fallback to 1st or 2nd column
-                $query = TicketStatus::query();
-                if ($ticket->project_id) {
-                    $query->where(function($q) use ($ticket) {
-                        $q->where('project_id', $ticket->project_id)
-                          ->orWhereNull('project_id');
-                    });
+            // Find current status index in the sorted list
+            $currentStatusIndex = $projectStatuses->search(fn($s) => $s->id == $ticket->status_id);
+            
+            // Incremental move (to the very next status in line)
+            if ($currentStatusIndex !== false) {
+                $nextStatus = $projectStatuses->get($currentStatusIndex + 1);
+                if ($nextStatus && $newStatus == $nextStatus->id) {
+                    $isValid = true;
                 }
-                $projectStatuses = $query->orderBy('order', 'asc')->get();
-                
+            }
+
+            // Fallback to 1st or 2nd column
+            if (!$isValid) {
                 $firstStatus = $projectStatuses->first();
                 $secondStatus = $projectStatuses->skip(1)->first();
 
@@ -359,7 +365,7 @@ trait KanbanScrumHelper
             $ticket->resource_utilization = $this->calculateTaskResourceUtilization(
                 $ticket->responsible_id,
                 $actualHours,
-                $ticket->estimation
+                (float)($ticket->estimation ?? 0.0)
             );
         } else {
             $ticket->resource_utilization = null;
