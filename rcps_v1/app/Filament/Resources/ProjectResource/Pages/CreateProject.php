@@ -38,13 +38,34 @@ class CreateProject extends CreateRecord
 
     public $selectedTaskUuid = null;
 
+    public function getAiResultsForPreview()
+    {
+        $fullResults = [];
+        foreach ($this->aiResults ?? [] as $taskUuid => $meta) {
+            if (is_array($meta) && isset($meta['cache_key'])) {
+                $fullResults[$taskUuid] = \Illuminate\Support\Facades\Cache::get($meta['cache_key']);
+            } else {
+                $fullResults[$taskUuid] = $meta;
+            }
+        }
+        return $fullResults;
+    }
+
     protected function handleRecordCreation(array $data): Model
     {
         return DB::transaction(function () use ($data) {
             // $algorithmMode = $data['algorithm_mode'] ?? 'divide_conquer';
             $algorithmMode = 'comparison';
-            // Store AI results for later use
-            $aiResults = $this->aiResults ?? [];
+            
+            // Reconstruct full AI results from Cache to keep Livewire payload tiny
+            $aiResults = [];
+            foreach ($this->aiResults ?? [] as $taskUuid => $meta) {
+                if (is_array($meta) && isset($meta['cache_key'])) {
+                    $aiResults[$taskUuid] = \Illuminate\Support\Facades\Cache::get($meta['cache_key']);
+                } else {
+                    $aiResults[$taskUuid] = $meta; // Fallback
+                }
+            }
 
             if ($algorithmMode === 'comparison') {
                 // CREATE 2 PROJECTS FOR COMPARATIVE STUDY
@@ -669,21 +690,34 @@ class CreateProject extends CreateRecord
         $result = $this->generateAiSubtasks($data, $algorithmMode);
 
         $generatedTasks = $result['tasks'];
-
+        
         // Force clean arrays to avoid Livewire corruption
         $generatedTasks = array_values(json_decode(json_encode($generatedTasks), true));
 
         $projectComplexity = $result['complexity'];
-
+        
         // Calculate total hours
-        $totalHours = collect($generatedTasks)->sum(function ($task) {
+        $totalHours = collect($generatedTasks)->sum(function($task) {
             return floatval($task['estimated_hours'] ?? $task['estimation'] ?? 0);
         });
+    
+        // Store full data in Cache
+        $cacheKey = 'ai_results_single_' . auth()->id() . '_' . $taskUuid;
+        $fullData = [$algorithmMode => $generatedTasks, 'is_comparative' => true];
+        \Illuminate\Support\Facades\Cache::put($cacheKey, $fullData, now()->addHours(2));
 
-
-        $this->aiResults[$taskUuid][$algorithmMode] = $generatedTasks;
-
-        $this->aiResults[$taskUuid]['is_comparative'] = true;
+        // Store tiny payload
+        $this->aiResults[$taskUuid] = [
+            'has_data' => true,
+            'cache_key' => $cacheKey,
+            'is_comparative' => true,
+            'summary' => [
+                $algorithmMode => [
+                    'total_hours' => $totalHours,
+                    'total_tasks' => count($generatedTasks)
+                ]
+            ]
+        ];
 
         // Show success notification
         $this->dispatchBrowserEvent('notify', [
@@ -742,11 +776,30 @@ class CreateProject extends CreateRecord
         $dcTasks = array_values(json_decode(json_encode($dcTasks), true));
         $greedyTasks = array_values(json_decode(json_encode($greedyTasks), true));
 
-        // Store in component for preview
-        $this->aiResults[$taskUuid] = [
+        // Store full data in Cache for efficiency
+        $cacheKey = 'ai_results_comp_' . auth()->id() . '_' . $taskUuid;
+        $fullData = [
             'divide_conquer' => $dcTasks,
             'greedy' => $greedyTasks,
             'is_comparative' => true
+        ];
+        \Illuminate\Support\Facades\Cache::put($cacheKey, $fullData, now()->addHours(2));
+
+        // Store only a tiny summary in the Livewire component to keep payload small
+        $this->aiResults[$taskUuid] = [
+            'has_data' => true,
+            'cache_key' => $cacheKey,
+            'is_comparative' => true,
+            'summary' => [
+                'divide_conquer' => [
+                    'total_hours' => collect($dcTasks)->sum(fn($t) => floatval($t['estimated_hours'] ?? 0)),
+                    'total_tasks' => count($dcTasks)
+                ],
+                'greedy' => [
+                    'total_hours' => collect($greedyTasks)->sum(fn($t) => floatval($t['estimated_hours'] ?? 0)),
+                    'total_tasks' => count($greedyTasks)
+                ]
+            ]
         ];
 
         // Generate comparison summary

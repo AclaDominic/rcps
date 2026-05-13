@@ -73,7 +73,7 @@
         // Check if any of them actually have tasks
         let hasTasks = false;
         taskUuids.forEach(uuid => {
-            if (aiResults[uuid].divide_conquer || aiResults[uuid].greedy) {
+            if (aiResults[uuid].has_data || aiResults[uuid].divide_conquer || aiResults[uuid].greedy) {
                 hasTasks = true;
             }
         });
@@ -94,24 +94,30 @@
         let totalDCTasks = 0;
         let totalGreedyTasks = 0;
         
-        let allDCTasks = [];
-        let allGreedyTasks = [];
+        let allDCTasks = this.overall_preview?.algorithms?.divide_conquer?.tasks || [];
+        let allGreedyTasks = this.overall_preview?.algorithms?.greedy?.tasks || [];
 
         taskUuids.forEach(uuid => {
             const result = aiResults[uuid];
-            if (result.divide_conquer) {
-                const dcTasks = result.divide_conquer;
-                const dcTasksWithProject = dcTasks.map(t => ({...t, project_name: this.project_name}));
-                allDCTasks = allDCTasks.concat(dcTasksWithProject);
-                totalDCHours += dcTasks.reduce((sum, t) => sum + (parseFloat(t.estimated_hours) || 0), 0);
-                totalDCTasks += dcTasks.length;
-            }
-            if (result.greedy) {
-                const greedyTasks = result.greedy;
-                const greedyTasksWithProject = greedyTasks.map(t => ({...t, project_name: this.project_name}));
-                allGreedyTasks = allGreedyTasks.concat(greedyTasksWithProject);
-                totalGreedyHours += greedyTasks.reduce((sum, t) => sum + (parseFloat(t.estimated_hours) || 0), 0);
-                totalGreedyTasks += greedyTasks.length;
+            if (result.summary) {
+                if (result.summary.divide_conquer) {
+                    totalDCHours += result.summary.divide_conquer.total_hours || 0;
+                    totalDCTasks += result.summary.divide_conquer.total_tasks || 0;
+                }
+                if (result.summary.greedy) {
+                    totalGreedyHours += result.summary.greedy.total_hours || 0;
+                    totalGreedyTasks += result.summary.greedy.total_tasks || 0;
+                }
+            } else {
+                // Fallback for old data structure
+                if (result.divide_conquer) {
+                    totalDCHours += result.divide_conquer.reduce((sum, t) => sum + (parseFloat(t.estimated_hours) || 0), 0);
+                    totalDCTasks += result.divide_conquer.length;
+                }
+                if (result.greedy) {
+                    totalGreedyHours += result.greedy.reduce((sum, t) => sum + (parseFloat(t.estimated_hours) || 0), 0);
+                    totalGreedyTasks += result.greedy.length;
+                }
             }
         });
 
@@ -230,13 +236,67 @@
         } catch (e) { return dateString; }
     },
 
-    openOverall() {
+    async fetchFullPreviewData() {
+        this.isLoading = true;
+        this.loadingText = 'Loading full analysis data...';
+        
+        try {
+            const components = window.Livewire.all();
+            let targetComponent = null;
+            for (const id in components) {
+                if (components[id].get('data')?.name || components[id].get('data')?.add_task) {
+                    targetComponent = components[id];
+                    break;
+                }
+            }
+
+            if (targetComponent) {
+                const fullResults = await targetComponent.call('getAiResultsForPreview');
+                let allDCTasks = [];
+                let allGreedyTasks = [];
+
+                Object.keys(fullResults).forEach(uuid => {
+                    const res = fullResults[uuid];
+                    if (res && res.divide_conquer) {
+                        const dcTasksWithProject = res.divide_conquer.map(t => ({...t, project_name: this.project_name}));
+                        allDCTasks = allDCTasks.concat(dcTasksWithProject);
+                    }
+                    if (res && res.greedy) {
+                        const greedyTasksWithProject = res.greedy.map(t => ({...t, project_name: this.project_name}));
+                        allGreedyTasks = allGreedyTasks.concat(greedyTasksWithProject);
+                    }
+                });
+
+                if (this.overall_preview) {
+                    this.overall_preview.algorithms.divide_conquer.tasks = allDCTasks;
+                    this.overall_preview.algorithms.greedy.tasks = allGreedyTasks;
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching preview data:', error);
+        } finally {
+            this.isLoading = false;
+        }
+    },
+
+    async openOverall() {
         this.updateOverall();
         if (!this.hasAnyGeneratedTasks) {
             alert('Please generate computation for at least one task first to see overall results.');
             return;
         }
+        await this.fetchFullPreviewData();
         this.$dispatch('open-modal', { id: '{{$overallModalId}}' });
+    },
+
+    async openComparativeModal() {
+        this.updateOverall();
+        if (!this.hasAnyGeneratedTasks) {
+            alert('Please generate computation first.');
+            return;
+        }
+        await this.fetchFullPreviewData();
+        this.$dispatch('open-modal', { id: 'comparative-study-modal-stable' });
     },
 
     // Helper methods for metrics (adapted from ai-button.blade.php)
@@ -450,7 +510,7 @@
         <!-- Preview Computation Study Button -->
         <button 
             type="button" 
-            @click="updateOverall(); $dispatch('open-modal', { id: 'comparative-study-modal-stable' })"
+            @click="openComparativeModal()"
             x-show="hasAnyGeneratedTasks"
             class="px-10 py-5 rounded-2xl transition-all duration-300 flex items-center justify-center gap-4 min-w-[320px] transform hover:-translate-y-1 active:scale-95 shadow-xl hover:shadow-2xl border-none bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white cursor-pointer"
         >
