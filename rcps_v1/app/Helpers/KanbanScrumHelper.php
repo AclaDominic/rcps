@@ -32,6 +32,7 @@ trait KanbanScrumHelper
     public $types = [];
     public $priorities = [];
     public $includeNotAffectedTickets = false;
+    public $main_task = null;
 
     public bool $ticket = false;
 
@@ -57,6 +58,16 @@ trait KanbanScrumHelper
                         ->label(__('Ticket priorities'))
                         ->multiple()
                         ->options(TicketPriority::all()->pluck('name', 'id')),
+
+                    Select::make('main_task')
+                        ->label(__('Main Task'))
+                        ->options(function() {
+                            if (!$this->project) return [];
+                            return Ticket::where('project_id', $this->project->id)
+                                ->whereNull('parent_ticket_id')
+                                ->pluck('name', 'id');
+                        })
+                        ->placeholder(__('All Tasks')),
 
                     Toggle::make('includeNotAffectedTickets')
                         ->label(__('Show only not affected tickets'))
@@ -131,6 +142,12 @@ trait KanbanScrumHelper
         if ($this->includeNotAffectedTickets) {
             $query->whereNull('responsible_id');
         }
+        if ($this->main_task) {
+            $query->where(function ($q) {
+                $q->where('id', $this->main_task)
+                  ->orWhere('parent_ticket_id', $this->main_task);
+            });
+        }
         $query->where(function ($query) {
             return $query->where('owner_id', auth()->user()->id)
                 ->orWhere('responsible_id', auth()->user()->id)
@@ -154,6 +171,7 @@ trait KanbanScrumHelper
                 'priority' => $item->priority,
                 'epic' => $item->epic,
                 'relations' => $item->relations,
+                'isMainTask' => is_null($item->parent_ticket_id),
                 'totalLoggedHours' => $item->totalLoggedSeconds ? $item->totalLoggedHours : null
             ]);
     }
