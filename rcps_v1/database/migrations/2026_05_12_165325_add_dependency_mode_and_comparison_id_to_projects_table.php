@@ -14,8 +14,12 @@ return new class extends Migration
     public function up()
     {
         Schema::table('projects', function (Blueprint $table) {
-            $table->integer('dependency_mode')->nullable();
-            $table->string('comparison_id')->nullable();
+            if (!Schema::hasColumn('projects', 'dependency_mode')) {
+                $table->integer('dependency_mode')->nullable();
+            }
+            if (!Schema::hasColumn('projects', 'comparison_id')) {
+                $table->string('comparison_id')->nullable();
+            }
         });
     }
 
