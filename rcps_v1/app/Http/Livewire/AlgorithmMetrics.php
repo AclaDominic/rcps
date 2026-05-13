@@ -14,17 +14,22 @@ class AlgorithmMetrics extends Component
 
     public function mount()
     {
-        $groupedByName = Project::get()
-            ->groupBy('name')
-            ->map(function ($projects, $name) {
-                return [
-                    'name' => $name,
-                    'comparison_ids' => $projects->pluck('comparison_id')->unique()->values(),
-                    'projects' => $projects
-                ];
-            });
+        $projects = Project::get();
+        
+        $grouped = $projects->groupBy(function ($project) {
+            return $project->comparison_id ?? $project->name;
+        })->map(function ($group, $key) {
+            $firstName = $group->first()->name;
+            $cleanName = preg_replace('/ - (Greedy Algorithm|Divide & Conquer Algorithm)$/', '', $firstName);
+            
+            return [
+                'name' => $cleanName,
+                'key' => $key,
+                'projects' => $group
+            ];
+        });
 
-        $this->projects = $groupedByName;
+        $this->projects = $grouped;
 
         $this->loadMetrics();
     }
@@ -44,11 +49,18 @@ class AlgorithmMetrics extends Component
         $this->metrics = $this->calculateProjectMetrics($this->selectedProjectName);
     }
 
-    public function calculateProjectMetrics($projectName)
+    public function calculateProjectMetrics($key)
     {
-        $projectID = Project::where('name',$projectName)->pluck('id');
-        // Fetch tickets for the project by name
-        $tickets = Ticket::whereIn('project_id',$projectID)->get();
+        // Fetch projects by comparison_id or name
+        $projects = Project::where('comparison_id', $key)
+            ->orWhere(function($q) use ($key) {
+                $q->whereNull('comparison_id')->where('name', $key);
+            })->get();
+            
+        $projectIDs = $projects->pluck('id');
+        
+        // Fetch tickets for the projects
+        $tickets = Ticket::whereIn('project_id', $projectIDs)->get();
 
         $ticketCount = $tickets->count();
 

@@ -8,7 +8,7 @@
                 class="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
             <option value="">Select Project</option>
             @foreach($projects as $group)
-                <option value="{{ $group['name'] }}">
+                <option value="{{ $group['key'] }}">
                     {{ $group['name'] }} 
                 </option>
             @endforeach
