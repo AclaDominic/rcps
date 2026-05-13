@@ -1126,10 +1126,10 @@ class TaskComputationsService
                 }
             }
 
-            // Parent relationship
+            // Parent relationship (Main task is parent of subtask)
             $relations[] = [
-                'ticket_id' => $subtask->id,
-                'relation_id' => $subtask->parent_ticket_id,
+                'ticket_id' => $subtask->parent_ticket_id,
+                'relation_id' => $subtask->id,
                 'type' => 'parent_of',
                 'sort' => 1
             ];
