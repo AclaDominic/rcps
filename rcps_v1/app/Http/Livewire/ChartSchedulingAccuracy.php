@@ -80,6 +80,13 @@ class ChartSchedulingAccuracy extends Component
         $avgGreedy = round((clone $query)->where('dependency_mode', 1)->avg('scheduling_accuracy') ?? 0, 2);
         $avgDivide = round((clone $query)->where('dependency_mode', 2)->avg('scheduling_accuracy') ?? 0, 2);
 
+        // Get completion percentage
+        $totalTickets = (clone $query)->count();
+        $completedTickets = (clone $query)->whereHas('status', function($q) {
+            $q->where('type', 'completed');
+        })->count();
+        $completionPercentage = $totalTickets > 0 ? round(($completedTickets / $totalTickets) * 100, 1) : 0;
+
         return [
             'datasets' => [
                 [
@@ -97,6 +104,7 @@ class ChartSchedulingAccuracy extends Component
                 ],
             ],
             'labels' => ['Greedy', 'Divide & Conquer'],
+            'completionPercentage' => $completionPercentage
         ];
     }
 

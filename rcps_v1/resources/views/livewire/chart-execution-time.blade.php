@@ -4,7 +4,10 @@
 
 <!-- Interpretation Section -->
 <div id="executionInterpretation" class="mt-4 text-sm text-gray-700 bg-gray-50 p-4 rounded-lg shadow">
-    <h3 class="font-bold mb-2">Interpretation</h3>
+    <div class="flex justify-between items-center mb-2">
+        <h3 class="font-bold">Interpretation</h3>
+        <span id="executionCompletionBadge" class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">Completion: 0%</span>
+    </div>
     <p id="executionInterpretationText">Loading interpretation...</p>
 </div>
 
@@ -28,7 +31,7 @@ function executionTimeChart() {
                         legend: { position: 'bottom' },
                         title: {
                             display: true,
-                            text: 'Average Execution Time by Dependency Mode'
+                            text: 'Average Execution Time (Theorized vs Actual) by Dependency Mode'
                         }
                     },
                     scales: {
@@ -36,7 +39,7 @@ function executionTimeChart() {
                             beginAtZero: true,
                             title: {
                                 display: true,
-                                text: 'Execution Time (hours)'
+                                text: 'Time (hours)'
                             }
                         }
                     }
@@ -60,29 +63,45 @@ function executionTimeChart() {
                 return;
             }
 
-            const dataset = data.datasets[0]; // only one dataset
-            const labels = data.labels;
-            const values = dataset.data;
-
-            let interpretation = "Not enough data to interpret.";
-
-            if (labels.length >= 2 && values.length >= 2) {
-                const firstLabel = labels[0];
-                const secondLabel = labels[1];
-                const firstVal = values[0];
-                const secondVal = values[1];
-
-                if (firstVal < secondVal) {
-                    interpretation =
-                        `${firstLabel} executed faster on average (${firstVal} hrs) compared to ${secondLabel} (${secondVal} hrs). ` +
-                        `This suggests ${firstLabel} is more time-efficient.`;
-                } else if (secondVal < firstVal) {
-                    interpretation =
-                        `${secondLabel} executed faster on average (${secondVal} hrs) compared to ${firstLabel} (${firstVal} hrs). ` +
-                        `This suggests ${secondLabel} handles dependencies more efficiently.`;
+            // Update Completion Badge
+            const completionBadge = document.getElementById('executionCompletionBadge');
+            if(data.completionPercentage !== undefined) {
+                completionBadge.innerText = `Project Completion: ${data.completionPercentage}%`;
+                if(data.completionPercentage >= 100) {
+                    completionBadge.className = "bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded";
+                } else if(data.completionPercentage >= 50) {
+                    completionBadge.className = "bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded";
                 } else {
-                    interpretation = `Both modes had the same average execution time (${firstVal} hrs).`;
+                    completionBadge.className = "bg-gray-100 text-gray-800 text-xs font-semibold px-2.5 py-0.5 rounded";
                 }
+            }
+
+            const labels = data.labels;
+            let interpretation = "";
+
+            if (!data.showActual) {
+                interpretation = `At least 50% project completion is required to compare theoretical estimates with actual execution reality. Currently showing only the AI's theorized averages.`;
+            } else if (data.datasets.length >= 2) {
+                const theorizedDataset = data.datasets[0].data;
+                const actualDataset = data.datasets[1].data;
+
+                const greedyEst = theorizedDataset[0];
+                const divideEst = theorizedDataset[1];
+                const greedyAct = actualDataset[0];
+                const divideAct = actualDataset[1];
+
+                let comparison = "";
+                if (divideAct < greedyAct) {
+                    comparison = `Divide & Conquer executed faster on average (${divideAct} hrs) compared to Greedy (${greedyAct} hrs). This confirms Divide & Conquer handled dependencies more efficiently.`;
+                } else if (greedyAct < divideAct) {
+                    comparison = `Greedy executed faster on average (${greedyAct} hrs) compared to Divide & Conquer (${divideAct} hrs). This confirms Greedy was more time-efficient for these tasks.`;
+                } else {
+                    comparison = `Both modes had the same average actual execution time (${greedyAct} hrs).`;
+                }
+
+                interpretation = `${comparison} Additionally, we can see the variance between the AI's theorized estimate and the actual reality for both algorithms.`;
+            } else {
+                interpretation = "Not enough data to interpret.";
             }
 
             document.getElementById('executionInterpretationText').innerText = interpretation;
