@@ -90,27 +90,60 @@ class ChartExecutionTime extends Component
             $query->whereYear('metrics_date', $this->selectedYear);
         }
 
-        // Get average execution_time by dependency_mode
-        $avgGreedy = round((clone $query)->where('dependency_mode', 1)->avg('execution_time') ?? 0, 2);
-        $avgDivide = round((clone $query)->where('dependency_mode', 2)->avg('execution_time') ?? 0, 2);
+        // Get completion percentage
+        $totalTickets = (clone $query)->count();
+        $completedTickets = (clone $query)->whereHas('status', function($q) {
+            $q->where('type', 'completed');
+        })->count();
+        $completionPercentage = $totalTickets > 0 ? round(($completedTickets / $totalTickets) * 100, 1) : 0;
+
+        // Get averages for Theorized (estimation)
+        $avgGreedyEst = round((clone $query)->where('dependency_mode', 1)->avg('estimation') ?? 0, 2);
+        $avgDivideEst = round((clone $query)->where('dependency_mode', 2)->avg('estimation') ?? 0, 2);
+
+        // Get averages for Actual (execution_time)
+        $avgGreedyAct = round((clone $query)->where('dependency_mode', 1)->avg('execution_time') ?? 0, 2);
+        $avgDivideAct = round((clone $query)->where('dependency_mode', 2)->avg('execution_time') ?? 0, 2);
+
+        $showActual = $completionPercentage >= 50;
+
+        $datasets = [
+            [
+                'label' => 'Average Theorized Time (hours)',
+                'data' => [$avgGreedyEst, $avgDivideEst],
+                'backgroundColor' => [
+                    'rgba(255, 159, 64, 0.3)',  // Light Orange
+                    'rgba(54, 162, 235, 0.3)',  // Light Blue
+                ],
+                'borderColor' => [
+                    'rgba(255, 159, 64, 1)',
+                    'rgba(54, 162, 235, 1)',
+                ],
+                'borderWidth' => 1
+            ]
+        ];
+
+        if ($showActual) {
+            $datasets[] = [
+                'label' => 'Average Actual Time (hours)',
+                'data' => [$avgGreedyAct, $avgDivideAct],
+                'backgroundColor' => [
+                    'rgba(255, 159, 64, 0.8)',  // Darker Orange
+                    'rgba(54, 162, 235, 0.8)',  // Darker Blue
+                ],
+                'borderColor' => [
+                    'rgba(255, 159, 64, 1)',
+                    'rgba(54, 162, 235, 1)',
+                ],
+                'borderWidth' => 1
+            ];
+        }
 
         return [
-            'datasets' => [
-                [
-                    'label' => 'Average Execution Time (hours)',
-                    'data' => [$avgGreedy, $avgDivide],
-                    'backgroundColor' => [
-                        'rgba(255, 159, 64, 0.6)',  // Greedy - orange
-                        'rgba(54, 162, 235, 0.6)',  // Divide & Conquer - blue
-                    ],
-                    'borderColor' => [
-                        'rgba(255, 159, 64, 1)',
-                        'rgba(54, 162, 235, 1)',
-                    ],
-                    'hoverOffset' => 6,
-                ],
-            ],
+            'datasets' => $datasets,
             'labels' => ['Greedy', 'Divide & Conquer'],
+            'completionPercentage' => $completionPercentage,
+            'showActual' => $showActual
         ];
     }
 }

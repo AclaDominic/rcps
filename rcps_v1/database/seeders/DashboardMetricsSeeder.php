@@ -46,11 +46,11 @@ class DashboardMetricsSeeder extends Seeder
         ]);
 
         $tasks = [
-            ['name' => 'Design Database Schema', 'estimation' => 8, 'g_actual' => 7.5, 'dc_actual' => 8.2, 'g_acc' => 93.75, 'dc_acc' => 97.5, 'g_util' => 93.75, 'dc_util' => 102.5],
-            ['name' => 'Develop API Endpoints', 'estimation' => 12, 'g_actual' => 14, 'dc_actual' => 11, 'g_acc' => 83.33, 'dc_acc' => 91.66, 'g_util' => 116.66, 'dc_util' => 91.66],
-            ['name' => 'Frontend Integration', 'estimation' => 10, 'g_actual' => 9, 'dc_actual' => 12, 'g_acc' => 90, 'dc_acc' => 80, 'g_util' => 90, 'dc_util' => 120],
-            ['name' => 'User Authentication', 'estimation' => 6, 'g_actual' => 6, 'dc_actual' => 5, 'g_acc' => 100, 'dc_acc' => 83.33, 'g_util' => 100, 'dc_util' => 83.33],
-            ['name' => 'Payment Gateway', 'estimation' => 16, 'g_actual' => 20, 'dc_actual' => 15, 'g_acc' => 75, 'dc_acc' => 93.75, 'g_util' => 125, 'dc_util' => 93.75],
+            ['name' => 'Design Database Schema', 'g_est' => 7, 'dc_est' => 8, 'g_actual' => 7.5, 'dc_actual' => 8.2, 'g_acc' => 93.75, 'dc_acc' => 97.5, 'g_util' => 93.75, 'dc_util' => 102.5],
+            ['name' => 'Develop API Endpoints', 'g_est' => 13, 'dc_est' => 12, 'g_actual' => 14, 'dc_actual' => 11, 'g_acc' => 83.33, 'dc_acc' => 91.66, 'g_util' => 116.66, 'dc_util' => 91.66],
+            ['name' => 'Frontend Integration', 'g_est' => 9.5, 'dc_est' => 10, 'g_actual' => 9, 'dc_actual' => 12, 'g_acc' => 90, 'dc_acc' => 80, 'g_util' => 90, 'dc_util' => 120],
+            ['name' => 'User Authentication', 'g_est' => 5.5, 'dc_est' => 6, 'g_actual' => 6, 'dc_actual' => 5, 'g_acc' => 100, 'dc_acc' => 83.33, 'g_util' => 100, 'dc_util' => 83.33],
+            ['name' => 'Payment Gateway', 'g_est' => 18, 'dc_est' => 16, 'g_actual' => 20, 'dc_actual' => 15, 'g_acc' => 75, 'dc_acc' => 93.75, 'g_util' => 125, 'dc_util' => 93.75],
         ];
 
         $today = Carbon::now();
@@ -65,7 +65,7 @@ class DashboardMetricsSeeder extends Seeder
                 'project_id' => $greedyProject->id,
                 'name' => $task['name'],
                 'content' => 'Description for ' . $task['name'],
-                'estimation' => $task['estimation'],
+                'estimation' => $task['g_est'],
                 'owner_id' => $user->id,
                 'responsible_id' => $user->id,
                 'priority_id' => 2,
@@ -88,7 +88,7 @@ class DashboardMetricsSeeder extends Seeder
                 'project_id' => $divideProject->id,
                 'name' => $task['name'],
                 'content' => 'Description for ' . $task['name'],
-                'estimation' => $task['estimation'],
+                'estimation' => $task['dc_est'],
                 'owner_id' => $user->id,
                 'responsible_id' => $user->id,
                 'priority_id' => 2,

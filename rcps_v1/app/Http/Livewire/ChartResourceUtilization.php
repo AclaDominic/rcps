@@ -104,6 +104,13 @@ class ChartResourceUtilization extends Component
         $greedyAvg = $summary[1] ?? 0;
         $divideAvg = $summary[2] ?? 0;
 
+        // Get completion percentage
+        $totalTickets = $this->getFilteredQuery()->count();
+        $completedTickets = $this->getFilteredQuery()->whereHas('status', function($q) {
+            $q->where('type', 'completed');
+        })->count();
+        $completionPercentage = $totalTickets > 0 ? round(($completedTickets / $totalTickets) * 100, 1) : 0;
+
         return [
             'labels' => $dates,
             'datasets' => [
@@ -133,7 +140,8 @@ class ChartResourceUtilization extends Component
                     'rgba(255, 99, 132, 1)',
                     'rgba(54, 162, 235, 1)',
                 ],
-            ]
+            ],
+            'completionPercentage' => $completionPercentage
         ];
     }
 

@@ -3,8 +3,11 @@
     <canvas id="barChart"></canvas>
 
     <!-- Interpretation Section -->
-    <div id="resourceInterpretation" class="mt-4 text-sm text-gray-700 bg-gray-50 p-3 rounded shadow">
-        <h3 class="font-bold mb-1">Interpretation:</h3>
+    <div id="resourceInterpretation" class="mt-4 text-sm text-gray-700 bg-gray-50 p-4 rounded-lg shadow">
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="font-bold">Interpretation:</h3>
+            <span id="resourceCompletionBadge" class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">Completion: 0%</span>
+        </div>
         <p id="resourceInterpretationText">Loading interpretation...</p>
     </div>
 </div>
@@ -49,7 +52,7 @@ function chartResourceUtilization() {
             });
 
             // Initial interpretation
-            this.updateInterpretation(chartData.summary);
+            this.updateInterpretation(chartData);
 
             // Update dynamically
             window.addEventListener('chart-data-resource-utilization-updated', e => {
@@ -64,11 +67,26 @@ function chartResourceUtilization() {
                 barChart.update();
 
                 // Update interpretation
-                this.updateInterpretation(e.detail.summary);
+                this.updateInterpretation(e.detail);
             });
         },
 
-        updateInterpretation(summary) {
+        updateInterpretation(chartData) {
+            const summary = chartData.summary;
+            
+            // Update Completion Badge
+            const completionBadge = document.getElementById('resourceCompletionBadge');
+            if(chartData.completionPercentage !== undefined) {
+                completionBadge.innerText = `Project Completion: ${chartData.completionPercentage}%`;
+                if(chartData.completionPercentage >= 100) {
+                    completionBadge.className = "bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded";
+                } else if(chartData.completionPercentage >= 50) {
+                    completionBadge.className = "bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded";
+                } else {
+                    completionBadge.className = "bg-gray-100 text-gray-800 text-xs font-semibold px-2.5 py-0.5 rounded";
+                }
+            }
+
             if (!summary || !summary.data.length) return;
 
             const results = summary.labels.map((label, i) => {

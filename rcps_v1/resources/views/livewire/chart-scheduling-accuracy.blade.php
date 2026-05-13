@@ -5,7 +5,10 @@
 </div>
 
  <div id="schedulingInterpretation" class="mt-4 text-sm text-gray-700 bg-gray-50 p-4 rounded-lg shadow">
-        <h3 class="font-bold mb-2">Interpretation</h3>
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="font-bold">Interpretation</h3>
+            <span id="schedulingCompletionBadge" class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">Completion: 0%</span>
+        </div>
         <p id="schedulingInterpretationText">Loading interpretation...</p>
     </div>
 
@@ -46,6 +49,19 @@ function chartSchedulingAccurancy() {
             
         },
         updateInterpretation(data) {
+            // Update Completion Badge
+            const completionBadge = document.getElementById('schedulingCompletionBadge');
+            if(data.completionPercentage !== undefined) {
+                completionBadge.innerText = `Project Completion: ${data.completionPercentage}%`;
+                if(data.completionPercentage >= 100) {
+                    completionBadge.className = "bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded";
+                } else if(data.completionPercentage >= 50) {
+                    completionBadge.className = "bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded";
+                } else {
+                    completionBadge.className = "bg-gray-100 text-gray-800 text-xs font-semibold px-2.5 py-0.5 rounded";
+                }
+            }
+
             if (!data || !data.datasets || !data.datasets.length) return;
 
             const dataset = data.datasets[0];
