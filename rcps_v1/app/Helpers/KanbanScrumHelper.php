@@ -403,27 +403,20 @@ trait KanbanScrumHelper
         $newStatus = TicketStatus::findOrFail($newStatusId);
         $currentStatus = $ticket->status;
         
-        $statusLevels = [
-            'pending' => 0,
-            'active' => 1,
-            'completed' => 2,
-        ];
-        
-        $newLevel = $statusLevels[$newStatus->type] ?? 0;
-        $currentLevel = $statusLevels[$currentStatus->type] ?? 0;
+        $newOrder = $newStatus->order;
 
-        // 1. Validate forward movement (dependencies must be at least at the same level)
+        // 1. Validate forward movement (dependencies must be at least at the same column)
         foreach ($ticket->relations as $relation) {
             if (!$relation->relation || !$relation->relation->status) {
                 continue;
             }
             
-            if ($relation->type === 'blocks' || $relation->type === 'depends_on') {
+            if ($relation->type === 'depends_on') {
                 $depStatus = $relation->relation->status;
-                $depLevel = $statusLevels[$depStatus->type] ?? 0;
+                $depOrder = $depStatus->order;
                 
-                if ($newLevel > $depLevel) {
-                    $errors[] = __("Cannot move to {$newStatus->name}: Dependent ticket #{$relation->relation->code} is only in {$depStatus->name}");
+                if ($newOrder > $depOrder) {
+                    $errors[] = __("Cannot move to {$newStatus->name}: Prerequisite ticket #{$relation->relation->code} is only in column {$depOrder}");
                 }
             }
         }
