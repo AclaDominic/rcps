@@ -388,8 +388,11 @@ trait KanbanScrumHelper
         }
 
         // 3. Handle cascading updates for dependents when moving back
-        // If current ticket is moving to a lower level, dependents cannot exceed it.
-        if ($newLevel < $currentLevel) {
+        // If current ticket is moving to a lower column (order), dependents cannot exceed it.
+        $newOrder = $newStatus->order;
+        $currentOrder = $currentStatus->order;
+
+        if ($newOrder < $currentOrder) {
             $dependents = $ticket->dependents()
                 ->with('ticket.status')
                 ->get();
@@ -398,27 +401,19 @@ trait KanbanScrumHelper
                 if (!$relation->ticket || !$relation->ticket->status) continue;
                 
                 $dependentTicket = $relation->ticket;
-                $dependentLevel = $statusLevels[$dependentTicket->status->type] ?? 0;
+                $dependentOrder = $dependentTicket->status->order;
                 
-                if ($dependentLevel > $newLevel) {
-                    $targetStatus = TicketStatus::where('type', $newStatus->type)
-                        ->where(function($q) use ($dependentTicket) {
-                            $q->where('project_id', $dependentTicket->project_id)
-                              ->orWhereNull('project_id');
-                        })
-                        ->orderBy('project_id', 'desc')
-                        ->first();
-                        
-                    if ($targetStatus) {
-                        $dependentTicket->status_id = $targetStatus->id;
-                        $dependentTicket->save();
-                        
-                        \Filament\Notifications\Notification::make()
-                            ->title('Status Cascaded')
-                            ->body(__("Moved dependent Ticket #{$dependentTicket->code} to {$targetStatus->name}"))
-                            ->warning()
-                            ->send();
-                    }
+                // If the dependent ticket is in a column "above" (higher order) than the new position of task a,
+                // pull it back to the exact same column as task a.
+                if ($dependentOrder > $newOrder) {
+                    $dependentTicket->status_id = $newStatus->id;
+                    $dependentTicket->save();
+                    
+                    \Filament\Notifications\Notification::make()
+                        ->title('Status Cascaded')
+                        ->body(__("Moved dependent Ticket #{$dependentTicket->code} to {$newStatus->name}"))
+                        ->warning()
+                        ->send();
                 }
             }
         }

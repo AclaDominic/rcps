@@ -14,11 +14,21 @@ return new class extends Migration
     public function up()
     {
         Schema::table('tickets', function (Blueprint $table) {
-            $table->unsignedBigInteger('main_task_id')->nullable();
-            $table->unsignedBigInteger('parent_ticket_id')->nullable();
-            $table->date('start_date')->nullable();
-            $table->date('due_date')->nullable();
-            $table->json('metadata')->nullable();
+            if (!Schema::hasColumn('tickets', 'main_task_id')) {
+                $table->unsignedBigInteger('main_task_id')->nullable();
+            }
+            if (!Schema::hasColumn('tickets', 'parent_ticket_id')) {
+                $table->unsignedBigInteger('parent_ticket_id')->nullable();
+            }
+            if (!Schema::hasColumn('tickets', 'start_date')) {
+                $table->date('start_date')->nullable();
+            }
+            if (!Schema::hasColumn('tickets', 'due_date')) {
+                $table->date('due_date')->nullable();
+            }
+            if (!Schema::hasColumn('tickets', 'metadata')) {
+                $table->json('metadata')->nullable();
+            }
         });
     }
 
