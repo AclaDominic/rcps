@@ -436,6 +436,22 @@ trait KanbanScrumHelper
             }
         }
 
+        // 2b. Implicit Sequence for Main Tasks (D&C Logic)
+        if (!$ticket->parent_ticket_id && $ticket->dependency_mode == 2) {
+            $previousMainTask = Ticket::where('project_id', $ticket->project_id)
+                ->whereNull('parent_ticket_id')
+                ->where('id', '<', $ticket->id)
+                ->orderBy('id', 'desc')
+                ->first();
+
+            if ($previousMainTask) {
+                $prevStatusOrder = $previousMainTask->status->order;
+                if ($newOrder > $prevStatusOrder) {
+                    $errors[] = __("Sequential Block: Main Task #{$ticket->code} cannot move to '{$newStatus->name}' because the preceding Main Task #{$previousMainTask->code} is still in '{$previousMainTask->status->name}'.");
+                }
+            }
+        }
+
         // 3. Validate manual relations
         foreach ($ticket->relations as $relation) {
             if (!$relation->relation || !$relation->relation->status) {
@@ -483,6 +499,27 @@ trait KanbanScrumHelper
                     \Filament\Notifications\Notification::make()
                         ->title(__('Sequence Cascaded'))
                         ->body(__("Task #{$follower->code} pulled back to '{$newStatus->name}' to follow #{$ticket->code}"))
+                        ->warning()
+                        ->send();
+                }
+            }
+        }
+
+        // 5b. Handle Backward Cascade (D&C Implicit Sequence for Main Tasks)
+        if ($newOrder < $currentOrder && !$ticket->parent_ticket_id && $ticket->dependency_mode == 2) {
+            $followers = Ticket::where('project_id', $ticket->project_id)
+                ->whereNull('parent_ticket_id')
+                ->where('id', '>', $ticket->id)
+                ->get();
+
+            foreach ($followers as $follower) {
+                if ($follower->status->order > $newOrder) {
+                    $follower->status_id = $newStatusId;
+                    $follower->save();
+                    
+                    \Filament\Notifications\Notification::make()
+                        ->title(__('Main Sequence Cascaded'))
+                        ->body(__("Main Task #{$follower->code} pulled back to '{$newStatus->name}' to follow #{$ticket->code}"))
                         ->warning()
                         ->send();
                 }
