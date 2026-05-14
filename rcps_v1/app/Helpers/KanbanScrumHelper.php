@@ -158,7 +158,7 @@ trait KanbanScrumHelper
                         });
                 });
         });
-        return $query->get()
+        return $query->orderBy('id', 'asc')->get()
             ->map(fn(Ticket $item) => [
                 'id' => $item->id,
                 'code' => $item->code,
@@ -407,11 +407,27 @@ trait KanbanScrumHelper
     {
         $errors = [];
         $newStatus = TicketStatus::findOrFail($newStatusId);
-        $currentStatus = $ticket->status;
-        
         $newOrder = $newStatus->order;
+        $currentStatus = $ticket->status;
+        $currentOrder = $currentStatus->order;
 
-        // 1. Validate forward movement (dependencies must be at least at the same column)
+        // 1. Implicit Sequence for Sub-tasks (D&C Logic)
+        // If this is a sub-task, it cannot be ahead of sub-tasks with lower IDs under the same parent.
+        if ($ticket->parent_ticket_id) {
+            $previousSubTask = Ticket::where('parent_ticket_id', $ticket->parent_ticket_id)
+                ->where('id', '<', $ticket->id)
+                ->orderBy('id', 'desc')
+                ->first();
+
+            if ($previousSubTask) {
+                $prevStatusOrder = $previousSubTask->status->order;
+                if ($newOrder > $prevStatusOrder) {
+                    $errors[] = __("Sequential Block: Task #{$ticket->code} cannot move to '{$newStatus->name}' because Task #{$previousSubTask->code} is still in '{$previousSubTask->status->name}'.");
+                }
+            }
+        }
+
+        // 2. Validate manual relations (Existing logic)
         foreach ($ticket->relations as $relation) {
             if (!$relation->relation || !$relation->relation->status) {
                 continue;
@@ -422,28 +438,33 @@ trait KanbanScrumHelper
                 $depOrder = $depStatus->order;
                 
                 if ($newOrder > $depOrder) {
-                    $errors[] = __("Cannot move to {$newStatus->name}: Prerequisite ticket #{$relation->relation->code} is only in column {$depOrder}");
+                    $errors[] = __("Dependency Block: Prerequisite ticket #{$relation->relation->code} is only in column '{$relation->relation->status->name}'.");
                 }
             }
         }
 
-        // 2. Validate order changes
-        if ($ticket->isDirty('order')) {
-            foreach ($ticket->relations as $relation) {
-                if (!$relation->relation)
-                    continue;
+        // 3. Handle Backward Cascade (Implicit Sequence)
+        // If a sub-task moves back, all following sub-tasks of the same parent must move back too.
+        if ($newOrder < $currentOrder && $ticket->parent_ticket_id) {
+            $followers = Ticket::where('parent_ticket_id', $ticket->parent_ticket_id)
+                ->where('id', '>', $ticket->id)
+                ->get();
 
-                if ($relation->type === 'depends_on' && $ticket->order < $relation->relation->order) {
-                    $errors[] = __("Cannot reorder: Must come after ticket #{$relation->relation->code}");
+            foreach ($followers as $follower) {
+                if ($follower->status->order > $newOrder) {
+                    $follower->status_id = $newStatusId;
+                    $follower->save();
+                    
+                    \Filament\Notifications\Notification::make()
+                        ->title(__('Sequence Cascaded'))
+                        ->body(__("Task #{$follower->code} pulled back to '{$newStatus->name}' to follow #{$ticket->code}"))
+                        ->warning()
+                        ->send();
                 }
             }
         }
 
-        // 3. Handle cascading updates for dependents when moving back
-        // If current ticket is moving to a lower column (order), dependents cannot exceed it.
-        $newOrder = $newStatus->order;
-        $currentOrder = $currentStatus->order;
-
+        // 4. Handle Backward Cascade (Manual Relations)
         if ($newOrder < $currentOrder) {
             $dependents = $ticket->dependents()
                 ->with('ticket.status')
@@ -455,15 +476,13 @@ trait KanbanScrumHelper
                 $dependentTicket = $relation->ticket;
                 $dependentOrder = $dependentTicket->status->order;
                 
-                // If the dependent ticket is in a column "above" (higher order) than the new position of task a,
-                // pull it back to the exact same column as task a.
                 if ($dependentOrder > $newOrder) {
-                    $dependentTicket->status_id = $newStatus->id;
+                    $dependentTicket->status_id = $newStatusId;
                     $dependentTicket->save();
                     
                     \Filament\Notifications\Notification::make()
-                        ->title('Status Cascaded')
-                        ->body(__("Moved dependent Ticket #{$dependentTicket->code} to {$newStatus->name}"))
+                        ->title(__('Dependency Cascaded'))
+                        ->body(__("Dependent Ticket #{$dependentTicket->code} moved back to '{$newStatus->name}'"))
                         ->warning()
                         ->send();
                 }

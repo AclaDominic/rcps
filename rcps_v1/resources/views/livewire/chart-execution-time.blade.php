@@ -31,7 +31,7 @@ function executionTimeChart() {
                         legend: { position: 'bottom' },
                         title: {
                             display: true,
-                            text: 'Average Execution Time (Theorized vs Actual) by Dependency Mode'
+                            text: 'Total Execution Time (Theorized vs Actual) by Dependency Mode'
                         }
                     },
                     scales: {
@@ -80,7 +80,7 @@ function executionTimeChart() {
             let interpretation = "";
 
             if (!data.showActual) {
-                interpretation = `At least 50% project completion is required to compare theoretical estimates with actual execution reality. Currently showing only the AI's theorized averages.`;
+                interpretation = `At least 50% project completion is required to compare theoretical estimates with actual execution reality. Currently showing only the AI's theorized totals.`;
             } else if (data.datasets.length >= 2) {
                 const theorizedDataset = data.datasets[0].data;
                 const actualDataset = data.datasets[1].data;
@@ -92,11 +92,11 @@ function executionTimeChart() {
 
                 let comparison = "";
                 if (divideAct < greedyAct) {
-                    comparison = `Divide & Conquer executed faster on average (${divideAct} hrs) compared to Greedy (${greedyAct} hrs). This confirms Divide & Conquer handled dependencies more efficiently.`;
+                    comparison = `Divide & Conquer executed faster in total (${divideAct} hrs) compared to Greedy (${greedyAct} hrs). This confirms Divide & Conquer handled dependencies more efficiently.`;
                 } else if (greedyAct < divideAct) {
-                    comparison = `Greedy executed faster on average (${greedyAct} hrs) compared to Divide & Conquer (${divideAct} hrs). This confirms Greedy was more time-efficient for these tasks.`;
+                    comparison = `Greedy executed faster in total (${greedyAct} hrs) compared to Divide & Conquer (${divideAct} hrs). This confirms Greedy was more time-efficient for these tasks.`;
                 } else {
-                    comparison = `Both modes had the same average actual execution time (${greedyAct} hrs).`;
+                    comparison = `Both modes had the same total actual execution time (${greedyAct} hrs).`;
                 }
 
                 interpretation = `${comparison} Additionally, we can see the variance between the AI's theorized estimate and the actual reality for both algorithms.`;

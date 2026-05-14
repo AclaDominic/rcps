@@ -97,20 +97,20 @@ class ChartExecutionTime extends Component
         })->count();
         $completionPercentage = $totalTickets > 0 ? round(($completedTickets / $totalTickets) * 100, 1) : 0;
 
-        // Get averages for Theorized (estimation)
-        $avgGreedyEst = round((clone $query)->where('dependency_mode', 1)->avg('estimation') ?? 0, 2);
-        $avgDivideEst = round((clone $query)->where('dependency_mode', 2)->avg('estimation') ?? 0, 2);
+        // Get totals for Theorized (estimation)
+        $totalGreedyEst = round((clone $query)->where('dependency_mode', 1)->sum('estimation') ?? 0, 2);
+        $totalDivideEst = round((clone $query)->where('dependency_mode', 2)->sum('estimation') ?? 0, 2);
 
-        // Get averages for Actual (execution_time)
-        $avgGreedyAct = round((clone $query)->where('dependency_mode', 1)->avg('execution_time') ?? 0, 2);
-        $avgDivideAct = round((clone $query)->where('dependency_mode', 2)->avg('execution_time') ?? 0, 2);
+        // Get totals for Actual (execution_time)
+        $totalGreedyAct = round((clone $query)->where('dependency_mode', 1)->sum('execution_time') ?? 0, 2);
+        $totalDivideAct = round((clone $query)->where('dependency_mode', 2)->sum('execution_time') ?? 0, 2);
 
         $showActual = $completionPercentage >= 50;
 
         $datasets = [
             [
-                'label' => 'Average Theorized Time (hours)',
-                'data' => [$avgGreedyEst, $avgDivideEst],
+                'label' => 'Total Theorized Time (hours)',
+                'data' => [$totalGreedyEst, $totalDivideEst],
                 'backgroundColor' => [
                     'rgba(255, 159, 64, 0.3)',  // Light Orange
                     'rgba(54, 162, 235, 0.3)',  // Light Blue
@@ -125,8 +125,8 @@ class ChartExecutionTime extends Component
 
         if ($showActual) {
             $datasets[] = [
-                'label' => 'Average Actual Time (hours)',
-                'data' => [$avgGreedyAct, $avgDivideAct],
+                'label' => 'Total Actual Time (hours)',
+                'data' => [$totalGreedyAct, $totalDivideAct],
                 'backgroundColor' => [
                     'rgba(255, 159, 64, 0.8)',  // Darker Orange
                     'rgba(54, 162, 235, 0.8)',  // Darker Blue
