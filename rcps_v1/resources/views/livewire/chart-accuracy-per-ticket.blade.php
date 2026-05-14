@@ -62,8 +62,11 @@
             },
 
             updateInterpretation(greedyData, divideData) {
-                const avgGreedy = greedyData.length ? (greedyData.reduce((a,b) => a+b, 0) / greedyData.length).toFixed(2) : 0;
-                const avgDivide = divideData.length ? (divideData.reduce((a,b) => a+b, 0) / divideData.length).toFixed(2) : 0;
+                const actualGreedyPoints = greedyData.filter(v => v !== null);
+                const actualDividePoints = divideData.filter(v => v !== null);
+                
+                const avgGreedy = actualGreedyPoints.length ? (actualGreedyPoints.reduce((a,b) => a+b, 0) / actualGreedyPoints.length).toFixed(2) : 0;
+                const avgDivide = actualDividePoints.length ? (actualDividePoints.reduce((a,b) => a+b, 0) / actualDividePoints.length).toFixed(2) : 0;
 
                 let interpretation = '';
                 if (avgGreedy > avgDivide) {
