@@ -470,19 +470,7 @@ trait KanbanScrumHelper
 
         // 4. Handle Backward Cascade (Pull subtasks back if Main moves back)
         if ($newOrder < $currentOrder && !$ticket->parent_ticket_id) {
-            $subtasks = Ticket::where('parent_ticket_id', $ticket->id)->get();
-            foreach ($subtasks as $sub) {
-                if ($sub->status->order > $newOrder) {
-                    $sub->status_id = $newStatusId;
-                    $sub->save();
-                    
-                    \Filament\Notifications\Notification::make()
-                        ->title(__('Hierarchy Cascaded'))
-                        ->body(__("Subtask #{$sub->code} pulled back to '{$newStatus->name}' to follow Main Task"))
-                        ->warning()
-                        ->send();
-                }
-            }
+            $this->pullBackSubtasks($ticket, $newStatusId, $newOrder, $newStatus->name, __("Main Task"));
         }
 
         // 5. Handle Backward Cascade (D&C Implicit Sequence)
@@ -522,6 +510,9 @@ trait KanbanScrumHelper
                         ->body(__("Main Task #{$follower->code} pulled back to '{$newStatus->name}' to follow #{$ticket->code}"))
                         ->warning()
                         ->send();
+
+                    // Ensure subtasks of the cascaded follower also move back
+                    $this->pullBackSubtasks($follower, $newStatusId, $newOrder, $newStatus->name, __("Cascaded Main Task"));
                 }
             }
         }
@@ -547,6 +538,11 @@ trait KanbanScrumHelper
                         ->body(__("Dependent Ticket #{$dependentTicket->code} moved back to '{$newStatus->name}'"))
                         ->warning()
                         ->send();
+
+                    // If the dependent is a Main Task, ensure its subtasks also move back
+                    if (!$dependentTicket->parent_ticket_id) {
+                        $this->pullBackSubtasks($dependentTicket, $newStatusId, $newOrder, $newStatus->name, __("Dependent Main Task"));
+                    }
                 }
             }
         }
@@ -655,6 +651,23 @@ trait KanbanScrumHelper
             );
         } else {
             return null;
+        }
+    }
+
+    protected function pullBackSubtasks(Ticket $mainTask, int $newStatusId, int $newOrder, string $newStatusName, string $reason): void
+    {
+        $subtasks = Ticket::where('parent_ticket_id', $mainTask->id)->get();
+        foreach ($subtasks as $sub) {
+            if ($sub->status && $sub->status->order > $newOrder) {
+                $sub->status_id = $newStatusId;
+                $sub->save();
+
+                \Filament\Notifications\Notification::make()
+                    ->title(__('Hierarchy Cascaded'))
+                    ->body(__("Subtask #{$sub->code} pulled back to '{$newStatusName}' to follow {$reason} #{$mainTask->code}"))
+                    ->warning()
+                    ->send();
+            }
         }
     }
 
