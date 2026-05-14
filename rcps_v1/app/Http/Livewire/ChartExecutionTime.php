@@ -53,7 +53,8 @@ class ChartExecutionTime extends Component
     {
         $isPrivileged = auth()->user()->hasRoleType(['CORE']);
 
-        $query = Ticket::query();
+        // Only get main tasks to prevent double counting estimations (Main Task + Subtasks)
+        $query = Ticket::query()->whereNull('parent_ticket_id');
 
         // Apply project filter
         if ($this->projectId) {
