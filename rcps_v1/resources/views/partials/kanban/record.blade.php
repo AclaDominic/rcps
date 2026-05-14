@@ -1,9 +1,7 @@
-<div class="kanban-record @if($record['isMainTask']) undraggable @endif" data-id="{{ $record['id'] }}">
-    @if(!$record['isMainTask'])
+<div class="kanban-record" data-id="{{ $record['id'] }}">
     <button type="button" class="handle">
         <x-heroicon-o-arrows-expand class="w-5 h-5" />
     </button>
-    @endif
     <div class="record-info">
         @if($this->isMultiProject())
             <span class="record-subtitle">

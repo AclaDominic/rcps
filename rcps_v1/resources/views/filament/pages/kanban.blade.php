@@ -37,7 +37,7 @@
                             pull: true,
                             put: true
                         },
-                        filter: '.undraggable',
+
                         handle: '.handle',
                         animation: 100,
                         onEnd: function (evt) {
