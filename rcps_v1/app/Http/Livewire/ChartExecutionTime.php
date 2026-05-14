@@ -99,8 +99,35 @@ class ChartExecutionTime extends Component
         $completionPercentage = $totalTickets > 0 ? round(($completedTickets / $totalTickets) * 100, 1) : 0;
 
         // Get totals for Theorized (estimation)
-        $totalGreedyEst = round((clone $query)->where('dependency_mode', 1)->sum('estimation') ?? 0, 2);
-        $totalDivideEst = round((clone $query)->where('dependency_mode', 2)->sum('estimation') ?? 0, 2);
+        // We iterate and apply the algorithm's efficiency factors (15% reduction or 10% increase)
+        // to match the "Efficiency Comparison" shown during project creation.
+        $greedyTickets = (clone $query)->where('dependency_mode', 1)->get();
+        $totalGreedyEst = 0;
+        foreach ($greedyTickets as $ticket) {
+            $metadata = json_decode($ticket->metadata, true) ?? [];
+            $complexityLevel = $metadata['complexity_level'] ?? 'Medium';
+            
+            // Map complexity string to parallelizable/critical logic
+            // Default to parallelizable (15% reduction) unless it's Critical/Extreme
+            $isParallel = !in_array(strtolower($complexityLevel), ['critical', 'extreme', 'very high']);
+            $isCritical = in_array(strtolower($complexityLevel), ['critical', 'extreme']);
+            
+            $base = (float)$ticket->estimation;
+            if ($isParallel && !$isCritical) {
+                // Greedy Optimistic Reduction (15%)
+                $base = round($base * 0.85, 2);
+            } else {
+                // Sequential/Critical Overhead (10%)
+                $base = round($base * 1.10, 2);
+            }
+            $totalGreedyEst += $base;
+        }
+
+        $divideTickets = (clone $query)->where('dependency_mode', 2)->get();
+        $totalDivideEst = 0;
+        foreach ($divideTickets as $ticket) {
+            $totalDivideEst += (float)$ticket->estimation;
+        }
 
         // Get totals for Actual (execution_time)
         $totalGreedyAct = round((clone $query)->where('dependency_mode', 1)->sum('execution_time') ?? 0, 2);
