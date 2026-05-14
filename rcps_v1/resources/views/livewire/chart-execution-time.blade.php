@@ -102,12 +102,20 @@ function executionTimeChart() {
                 const divideAct = actualDataset[1];
 
                 let comparison = "";
-                if (divideAct < greedyAct) {
-                    comparison = `<span class="text-green-600 font-bold">Divide & Conquer</span> is currently leading in efficiency, executing faster in total (${divideAct} hrs) compared to Greedy (${greedyAct} hrs).`;
-                } else if (greedyAct < divideAct) {
-                    comparison = `<span class="text-green-600 font-bold">Greedy Algorithm</span> is currently leading in efficiency, executing faster in total (${greedyAct} hrs) compared to Divide & Conquer (${divideAct} hrs).`;
+                if (greedyAct > 0 && divideAct > 0) {
+                    if (divideAct < greedyAct) {
+                        comparison = `<span class="text-green-600 font-bold">Divide & Conquer</span> is currently leading in efficiency, executing faster in total (${divideAct} hrs) compared to Greedy (${greedyAct} hrs).`;
+                    } else if (greedyAct < divideAct) {
+                        comparison = `<span class="text-green-600 font-bold">Greedy Algorithm</span> is currently leading in efficiency, executing faster in total (${greedyAct} hrs) compared to Divide & Conquer (${divideAct} hrs).`;
+                    } else {
+                        comparison = `Both modes are performing equally in terms of actual execution time (${greedyAct} hrs).`;
+                    }
+                } else if (greedyAct > 0 && divideAct === 0) {
+                    comparison = `Active progress detected in <span class="font-bold">Greedy</span> (${greedyAct} hrs), while <span class="font-bold italic text-gray-400">Divide & Conquer</span> data is pending task completion.`;
+                } else if (divideAct > 0 && greedyAct === 0) {
+                    comparison = `Active progress detected in <span class="font-bold">Divide & Conquer</span> (${divideAct} hrs), while <span class="font-bold italic text-gray-400">Greedy</span> data is pending task completion.`;
                 } else {
-                    comparison = `Both modes are performing equally in terms of actual execution time (${greedyAct} hrs).`;
+                    comparison = `Actual execution data is not yet available for either algorithm. Theorized totals are shown for planning purposes.`;
                 }
 
                 interpretation = `<span class="font-semibold">Insight:</span> ${comparison} <br><br>` +
