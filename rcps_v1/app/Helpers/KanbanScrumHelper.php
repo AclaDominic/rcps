@@ -232,7 +232,7 @@ trait KanbanScrumHelper
             }
 
             // 1. Validate dependencies FIRST (before any changes)
-            if ($ticket->dependency_mode == 2) {
+            if ($ticket->dependency_mode == 2 || $ticket->dependency_mode == 3) {
                 $validationErrors = $this->validateDependencies($ticket, $newStatus);
 
                 if (!empty($validationErrors)) {
