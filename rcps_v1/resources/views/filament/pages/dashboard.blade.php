@@ -40,9 +40,10 @@
                                            <div>
                                                 <h3 class="font-bold mb-1">Guidelines</h3>
                                                 <ul class="list-disc pl-4 space-y-1">
-                                                    <li><b>Execution Time:</b> Represents the average time it takes to complete tickets.</li>
-                                                    <li><b>Greedy Mode:</b> Tasks are auto-assigned; measures how fast they finish.</li>
-                                                    <li><b>Divide & Conquer:</b> Manual dependency mode; execution time includes coordination.</li>
+                                                    <li><b>Execution Time:</b> Represents the total accumulated hours for all project tasks.</li>
+                                                    <li><b>Theorized vs Actual:</b> Compares the AI's optimized time estimation against real-world execution data.</li>
+                                                    <li><b>Greedy Mode:</b> Auto-assigned tasks; measures total completion speed.</li>
+                                                    <li><b>Divide & Conquer:</b> Manual dependency mode; includes coordination overhead.</li>
                                                 </ul>
                                             </div>
                                             <br>
@@ -50,8 +51,9 @@
                                                 <h3 class="font-bold mb-1">How to Read the Chart:</h3>
                                                 <ul class="list-disc pl-5 mt-1 space-y-1">
                                                     <li><b>X-Axis (Modes):</b> Greedy vs Divide & Conquer.</li>
-                                                    <li><b>Y-Axis (Hours):</b> Average execution time in hours.</li>
-                                                    <li><b>Interpretation:</b> Lower bars = faster execution. Compare which mode performs better.</li>
+                                                    <li><b>Y-Axis (Hours):</b> Total execution hours (theorized vs actual).</li>
+                                                    <li><b>Bars:</b> Comparison of the AI's calculated efficiency against actual team performance.</li>
+                                                    <li><b>Interpretation:</b> Shorter bars = faster project delivery.</li>
                                                 </ul>
                                             </div>
                                         </div>
