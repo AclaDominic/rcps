@@ -411,9 +411,18 @@ trait KanbanScrumHelper
         $currentStatus = $ticket->status;
         $currentOrder = $currentStatus->order;
 
-        // 1. Implicit Sequence for Sub-tasks (D&C Logic)
-        // If this is a sub-task, it cannot be ahead of sub-tasks with lower IDs under the same parent.
+        // 1. Hierarchy Logic: Subtask cannot be ahead of Main Task
         if ($ticket->parent_ticket_id) {
+            $mainTask = Ticket::with('status')->find($ticket->parent_ticket_id);
+            if ($mainTask && $mainTask->status) {
+                if ($newOrder > $mainTask->status->order) {
+                    $errors[] = __("Hierarchy Block: Subtask cannot move ahead of its Main Task #{$mainTask->code} ('{$mainTask->status->name}'). Move the Main Task first.");
+                }
+            }
+        }
+
+        // 2. Implicit Sequence for Sub-tasks (D&C Logic)
+        if ($ticket->parent_ticket_id && $ticket->dependency_mode == 2) {
             $previousSubTask = Ticket::where('parent_ticket_id', $ticket->parent_ticket_id)
                 ->where('id', '<', $ticket->id)
                 ->orderBy('id', 'desc')
@@ -427,7 +436,7 @@ trait KanbanScrumHelper
             }
         }
 
-        // 2. Validate manual relations (Existing logic)
+        // 3. Validate manual relations
         foreach ($ticket->relations as $relation) {
             if (!$relation->relation || !$relation->relation->status) {
                 continue;
@@ -443,8 +452,24 @@ trait KanbanScrumHelper
             }
         }
 
-        // 3. Handle Backward Cascade (Implicit Sequence)
-        // If a sub-task moves back, all following sub-tasks of the same parent must move back too.
+        // 4. Handle Backward Cascade (Pull subtasks back if Main moves back)
+        if ($newOrder < $currentOrder && !$ticket->parent_ticket_id) {
+            $subtasks = Ticket::where('parent_ticket_id', $ticket->id)->get();
+            foreach ($subtasks as $sub) {
+                if ($sub->status->order > $newOrder) {
+                    $sub->status_id = $newStatusId;
+                    $sub->save();
+                    
+                    \Filament\Notifications\Notification::make()
+                        ->title(__('Hierarchy Cascaded'))
+                        ->body(__("Subtask #{$sub->code} pulled back to '{$newStatus->name}' to follow Main Task"))
+                        ->warning()
+                        ->send();
+                }
+            }
+        }
+
+        // 5. Handle Backward Cascade (D&C Implicit Sequence)
         if ($newOrder < $currentOrder && $ticket->parent_ticket_id) {
             $followers = Ticket::where('parent_ticket_id', $ticket->parent_ticket_id)
                 ->where('id', '>', $ticket->id)
@@ -464,7 +489,7 @@ trait KanbanScrumHelper
             }
         }
 
-        // 4. Handle Backward Cascade (Manual Relations)
+        // 6. Handle Backward Cascade (Manual Relations)
         if ($newOrder < $currentOrder) {
             $dependents = $ticket->dependents()
                 ->with('ticket.status')

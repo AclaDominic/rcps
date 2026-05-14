@@ -113,8 +113,17 @@ class Ticket extends Model implements HasMedia
                     }
 
                     $newStatusId = $mainTask->status_id;
-                    if ($lowestOrderSubtask) {
-                        $newStatusId = $lowestOrderSubtask->status_id;
+                    $currentMainOrder = $mainTask->status ? $mainTask->status->order : 0;
+
+                    if ($lowestOrderSubtask && $lowestOrderSubtask->status) {
+                        $lowestSubOrder = $lowestOrderSubtask->status->order;
+                        
+                        // Rule: Main must be ahead or equal to subtasks.
+                        // If the lowest subtask has moved ahead of the Main task, 
+                        // or if the lowest subtask has moved back and we want to keep them synced.
+                        if ($currentMainOrder < $lowestSubOrder) {
+                            $newStatusId = $lowestOrderSubtask->status_id;
+                        }
                     }
 
                     if ($mainTask->status_id !== $newStatusId) {
